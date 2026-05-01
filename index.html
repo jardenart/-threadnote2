@@ -9,7 +9,29 @@
 <meta name="apple-mobile-web-app-title" content="PostFlow">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+// manifest をインラインで動的生成（外部ファイル不要の保険）
+(function(){
+  const m = {
+    name:'PostFlow', short_name:'PostFlow',
+    description:'投稿型スケジューラー',
+    start_url: location.href.split('?')[0],
+    display:'standalone',
+    background_color:'#0a0a0f', theme_color:'#7c6dfa',
+    orientation:'portrait-primary', lang:'ja',
+    icons:[
+      {src:'icon-192.png',sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:'icon-512.png',sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ]
+  };
+  const el = document.querySelector('link[rel="manifest"]');
+  if(el){
+    const blob = new Blob([JSON.stringify(m)],{type:'application/manifest+json'});
+    el.href = URL.createObjectURL(blob);
+  }
+})();
+</script>
 <title>PostFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1222,14 +1244,16 @@ function renderAll(){
 }
 
 /* ════════════════════════════════════════
-   PWA — SERVICE WORKER & INSTALL
+   PWA — SERVICE WORKER
 ════════════════════════════════════════ */
-let deferredPrompt = null;
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  });
+  const swPath = location.pathname.replace(/\/[^\/]*$/, '/') + 'sw.js';
+  navigator.serviceWorker.register(swPath)
+    .then(()=>console.log('[PostFlow] SW登録完了'))
+    .catch(e=>console.warn('[PostFlow] SW登録失敗:',e));
 }
+
+let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e=>{
   e.preventDefault();
   deferredPrompt = e;
