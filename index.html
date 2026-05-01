@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c6dfa">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PostFlow">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>PostFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════
+   VARIABLES & RESET
+════════════════════════════ */
+:root {
+  --bg:      #0a0a0f;
+  --surface: #111118;
+  --surface2:#1a1a25;
+  --surface3:#22223a;
+  --border:  #2a2a40;
+  --accent:  #7c6dfa;
+  --accent2: #fa6d9a;
+  --accent3: #6dfac2;
+  --accent4: #fac06d;
+  --text:    #e8e8f0;
+  --text2:   #9090b0;
+  --text3:   #5a5a7a;
+  --radius:  14px;
+  --rsm:     10px;
+  /* safe areas */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  /* bottom nav height */
+  --nav-h: 64px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ════════════════════════════
+   APP SHELL
+════════════════════════════ */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* ステータスバー分の上余白 */
+  padding-top: var(--sat);
+}
+
+/* ─── TOP HEADER ─── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.top-bar-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.icon-btn:active { background: var(--surface3); color: var(--text); transform: scale(0.95); }
+.icon-btn.accent { background: var(--accent); border-color: var(--accent); color: white; }
+.icon-btn.accent:active { background: #6859e8; }
+
+/* ─── DATE STRIP ─── */
+.date-strip {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.date-strip::-webkit-scrollbar { display: none; }
+.date-cell {
+  flex-shrink: 0;
+  width: 50px;
+  padding: 8px 4px;
+  border-radius: var(--rsm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.date-cell:active { transform: scale(0.95); }
+.date-cell.today  { border-color: var(--accent)88; background: var(--accent)10; }
+.date-cell.selected { border-color: var(--accent); background: var(--accent)25; }
+.date-cell .dow {
+  font-size: 9px; color: var(--text3); font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px;
+}
+.date-cell .day {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 700;
+}
+.date-cell.today .day  { color: var(--accent); }
+.date-cell.selected .day { color: var(--accent); }
+.date-cell .dot-row {
+  display: flex; justify-content: center; gap: 2px;
+  margin-top: 4px; height: 4px;
+}
+.date-dot { width: 4px; height: 4px; border-radius: 50%; }
+
+/* ─── VIEW TOGGLE ─── */
+.view-toggle {
+  display: flex;
+  gap: 0;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.view-tab {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  background: none;
+  color: var(--text3);
+  transition: all 0.15s;
+}
+.view-tab.active { background: var(--accent); color: white; }
+
+/* ─── SECTION HEADER ─── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 4px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-size: 13px; font-weight: 700; color: var(--text2);
+}
+.section-count {
+  font-size: 12px; color: var(--text3);
+}
+
+/* ─── SCROLL CONTENT ─── */
+.scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 10px 14px;
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── POST CARD ─── */
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: fadeUp 0.2s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+}
+.type-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+}
+.type-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.card-idx { font-family: 'Syne', sans-serif; font-size: 11px; color: var(--text3); margin-left: auto; }
+
+.card-actions {
+  display: flex; gap: 2px;
+}
+.mini-btn {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  border: none; background: none;
+  color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.1s;
+}
+.mini-btn:active { background: var(--surface2); color: var(--text); transform: scale(0.9); }
+
+.card-body { padding: 4px 12px 10px; }
+.post-text {
+  font-size: 13.5px; line-height: 1.85;
+  color: var(--text); white-space: pre-wrap; word-break: break-word;
+}
+.post-text-empty { color: var(--text3); font-style: italic; font-size: 13px; }
+
+.edit-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--accent)88;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13.5px; line-height: 1.85;
+  resize: none;
+  min-height: 100px;
+  outline: none;
+}
+.edit-textarea:focus { border-color: var(--accent); }
+
+.card-foot {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+}
+.char-count { font-size: 11px; color: var(--text3); }
+.spacer { flex: 1; }
+.btn-sm {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px; font-weight: 500;
+  border: none; cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 4px;
+}
+.btn-sm:active { transform: scale(0.95); }
+.btn-edit-sm { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-edit-sm:active { color: var(--text); }
+.btn-save-sm { background: var(--accent3)20; color: var(--accent3); }
+.btn-done-sm { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+.btn-done-sm.done { background: var(--accent3); color: #0a0a0f; border-color: var(--accent3); }
+
+/* ─── WEEK DATE DIVIDER ─── */
+.week-divider {
+  font-size: 11px; font-weight: 700;
+  color: var(--text3);
+  padding: 8px 2px 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.week-divider.is-today { color: var(--accent); }
+.week-divider-line { flex: 1; height: 1px; background: var(--border); }
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; padding: 60px 20px;
+  text-align: center;
+}
+.empty-icon { opacity: 0.3; }
+.empty-title { font-size: 15px; color: var(--text2); font-weight: 600; }
+.empty-sub { font-size: 12px; color: var(--text3); line-height: 1.7; }
+
+/* ─── STATS ROW ─── */
+.stats-row {
+  display: flex;
+  padding: 8px 14px 4px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.stat-pill {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 8px;
+  text-align: center;
+}
+.stat-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 700;
+}
+.stat-lbl { font-size: 9px; color: var(--text3); margin-top: 1px; letter-spacing: 0.3px; }
+
+/* ─── BOTTOM NAV ─── */
+.bottom-nav {
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--sab);
+  flex-shrink: 0;
+  height: calc(var(--nav-h) + var(--sab));
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text3);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 4px;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-item:active { transform: scale(0.9); }
+.nav-item.active { color: var(--accent); }
+.nav-item svg { transition: all 0.15s; }
+.nav-item.active svg { filter: drop-shadow(0 0 6px var(--accent)88); }
+/* 中央FAB */
+.nav-fab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  border: none;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab-circle {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px var(--accent)55;
+  margin-top: -20px;
+  transition: all 0.15s;
+}
+.nav-fab:active .fab-circle { transform: scale(0.92); }
+
+/* ════════════════════════════
+   MODALS
+════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: #00000099;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end; /* 下から出る */
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+/* シート型（下から） */
+.sheet {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+  padding-bottom: var(--sab);
+}
+.modal-overlay.open .sheet { transform: translateY(0); }
+
+/* センター型（型追加など） */
+.modal-overlay.center { align-items: center; padding: 20px; }
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  transform: scale(0.94) translateY(12px);
+  transition: transform 0.25s cubic-bezier(.32,.72,0,1);
+}
+.modal-overlay.open .modal-box { transform: scale(1) translateY(0); }
+
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 12px auto 4px;
+  flex-shrink: 0;
+}
+.sheet-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 700;
+  padding: 8px 20px 16px;
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 700;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ─── FORM ─── */
+.form-label {
+  display: block;
+  font-size: 11px; font-weight: 700;
+  color: var(--text2); margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+.form-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px; line-height: 1.6;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.form-input:focus { border-color: var(--accent); }
+textarea.form-input { resize: none; min-height: 110px; }
+select.form-input { cursor: pointer; }
+
+.color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-swatch {
+  width: 30px; height: 30px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: all 0.15s;
+}
+.color-swatch:active { transform: scale(1.1); }
+.color-swatch.selected { border-color: white; }
+
+.sheet-footer {
+  display: flex; gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.btn-full {
+  flex: 1; padding: 13px;
+  border-radius: 12px; border: none;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-full:active { transform: scale(0.97); }
+.btn-cancel { background: var(--surface2); color: var(--text2); }
+.btn-submit { background: var(--accent); color: white; }
+
+/* ─── TYPES SHEET ─── */
+.type-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.type-list-item:active { transform: scale(0.98); }
+.type-list-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.type-list-name { flex: 1; font-size: 14px; font-weight: 500; }
+.type-list-count { font-size: 12px; color: var(--text3); }
+
+/* ─── ROUTINE GRID ─── */
+.routine-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.rg-label {
+  text-align: center; font-size: 10px; color: var(--text3);
+  padding: 4px 0; font-weight: 700;
+}
+.rg-slot {
+  min-height: 36px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  cursor: pointer;
+  border: 1px dashed var(--border);
+  color: var(--text3);
+  transition: all 0.15s;
+  overflow: hidden;
+  padding: 2px;
+  text-align: center;
+  line-height: 1.3;
+}
+.rg-slot:active { transform: scale(0.93); }
+.rg-slot.filled { border-style: solid; }
+
+/* ─── SLOT PICKER ─── */
+.slot-type-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.slot-type-item:active { transform: scale(0.97); }
+
+/* ─── INSTALL BANNER ─── */
+.install-banner {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--accent)22, var(--accent2)15);
+  border-bottom: 1px solid var(--accent)33;
+  font-size: 12px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.install-banner.show { display: flex; }
+.install-btn {
+  margin-left: auto;
+  padding: 5px 12px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; flex-shrink: 0;
+}
+.install-close {
+  width: 20px; height: 20px;
+  border: none; background: none;
+  color: var(--text3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--sab) + 16px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface3); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px; font-weight: 500;
+  z-index: 300;
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ─── TOP BAR ─── -->
+  <header class="top-bar">
+    <div class="logo-text">PostFlow</div>
+    <div class="top-bar-right">
+      <div class="view-toggle">
+        <button class="view-tab active" onclick="setView('day',this)">日</button>
+        <button class="view-tab" onclick="setView('week',this)">週</button>
+      </div>
+      <button class="icon-btn" onclick="openRoutineSheet()" title="ルーティン">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── INSTALL BANNER ─── -->
+  <div class="install-banner" id="installBanner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span>ホーム画面に追加してアプリとして使う</span>
+    <button class="install-btn" id="installBtn">追加</button>
+    <button class="install-close" onclick="document.getElementById('installBanner').classList.remove('show')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- ─── DATE STRIP ─── -->
+  <div class="date-strip" id="dateStrip"></div>
+
+  <!-- ─── STATS ─── -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- ─── SECTION HEADER ─── -->
+  <div class="section-header">
+    <div class="section-title" id="sectionTitle">今日の投稿</div>
+    <div class="section-count" id="sectionCount"></div>
+  </div>
+
+  <!-- ─── SCROLL CONTENT ─── -->
+  <div class="scroll-content" id="scrollContent"></div>
+
+  <!-- ─── BOTTOM NAV ─── -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="navToday" onclick="goToday()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>今日</span>
+    </button>
+    <button class="nav-item" id="navTypes" onclick="openTypesSheet()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>型一覧</span>
+    </button>
+    <!-- FAB -->
+    <button class="nav-fab" onclick="openAddPostSheet()">
+      <div class="fab-circle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </button>
+    <button class="nav-item" id="navRoutine" onclick="openRoutineSheet()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      <span>ルーティン</span>
+    </button>
+    <button class="nav-item" onclick="openAddTypeSheet()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>型追加</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ─── TOAST ─── -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════
+     SHEETS / MODALS
+════════════════════════════ -->
+
+<!-- 投稿追加 -->
+<div class="modal-overlay" id="addPostOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      投稿を追加
+    </div>
+    <div class="sheet-body">
+      <div>
+        <label class="form-label">日付</label>
+        <input class="form-input" id="postDate" type="date">
+      </div>
+      <div>
+        <label class="form-label">投稿の型</label>
+        <select class="form-input" id="postType" onchange="onPostTypeChange()"></select>
+      </div>
+      <div>
+        <label class="form-label">投稿文</label>
+        <textarea class="form-input" id="postText" placeholder="投稿文を入力…" rows="6"></textarea>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="btn-full btn-cancel" onclick="closeSheet('addPostOverlay')">キャンセル</button>
+      <button class="btn-full btn-submit" onclick="savePost()">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 型追加 -->
+<div class="modal-overlay center" id="addTypeOverlay">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      型を追加
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label class="form-label">型の名前</label>
+        <input class="form-input" id="typeName" placeholder="例：共感系、実績系、CTA系…" maxlength="20">
+      </div>
+      <div>
+        <label class="form-label">テンプレート文（省略可）</label>
+        <textarea class="form-input" id="typeTemplate" placeholder="投稿テンプレートを入力…" rows="4"></textarea>
+      </div>
+      <div>
+        <label class="form-label">カラー</label>
+        <div class="color-row" id="colorPicker"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button class="btn-full btn-cancel" onclick="closeSheet('addTypeOverlay')">キャンセル</button>
+      <button class="btn-full btn-submit" onclick="saveType()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 型一覧 -->
+<div class="modal-overlay" id="typesOverlay">
+  <div class="sheet" style="max-height:70vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      投稿の型一覧
+    </div>
+    <div class="sheet-body" id="typesSheetBody"></div>
+    <div class="sheet-footer">
+      <button class="btn-full btn-cancel" onclick="closeSheet('typesOverlay')">閉じる</button>
+      <button class="btn-full btn-submit" onclick="closeSheet('typesOverlay');openAddTypeSheet()">＋ 型を追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ルーティン -->
+<div class="modal-overlay" id="routineOverlay">
+  <div class="sheet" style="max-height:85vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      ルーティン設定
+    </div>
+    <div class="sheet-body">
+      <div style="font-size:12px;color:var(--text3);line-height:1.7;">
+        曜日ごとに投稿する「型」を登録。「今週に適用」で自動スケジュール生成。
+      </div>
+      <div class="routine-grid" id="routineGrid"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="btn-full btn-cancel" onclick="closeSheet('routineOverlay')">閉じる</button>
+      <button class="btn-full btn-submit" onclick="applyRoutine()">今週に適用</button>
+    </div>
+  </div>
+</div>
+
+<!-- スロット型選択 -->
+<div class="modal-overlay" id="slotOverlay">
+  <div class="sheet" style="max-height:60vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="slotSheetTitle">型を選択</div>
+    <div class="sheet-body" id="slotTypeList" style="gap:8px;"></div>
+    <div class="sheet-footer">
+      <button class="btn-full btn-cancel" onclick="closeSheet('slotOverlay')">キャンセル</button>
+      <button class="btn-full" style="background:var(--accent2)20;color:var(--accent2);" onclick="clearSlot()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg>
+        クリア
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+const STORAGE_KEY = 'postflow_v1';
+let state = {
+  types: [
+    { id:'t1', name:'共感系',   color:'#7c6dfa', template:'✅ 気づき\n\nこれって〇〇な方あるあるじゃないですか？\n\n実は私も〜\n\n→ だから今日は〇〇をシェアします！' },
+    { id:'t2', name:'実績系',   color:'#fa6d9a', template:'📊 実績報告\n\n先月の結果が出ました。\n\n▶ フォロワー: 〇〇→〇〇\n▶ 収益: 〇〇円\n\nやったこと3つ👇' },
+    { id:'t3', name:'ノウハウ系',color:'#6dfac2', template:'💡 タイトル\n\n〇〇で悩んでいる方へ\n\n✅ ポイント①\n✅ ポイント②\n✅ ポイント③\n\nこれだけで変わります。' },
+    { id:'t4', name:'CTA系',    color:'#fac06d', template:'🎁 お知らせ\n\nnoteに〇〇を書きました！\n\n・〇〇がわかる\n・〇〇できるようになる\n\nプロフのリンクからどうぞ👇' },
+    { id:'t5', name:'ストーリー系',color:'#6dbbfa', template:'📖 タイトル\n\n〇年前の私は〇〇でした。\n\nそこから〇〇して…\n\n今では〇〇に。\n\nきっかけは一つの気づきでした👇' },
+  ],
+  posts: [],
+  routine: {},
+  selectedDate: todayStr(),
+};
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function loadState() {
+  try { const s = localStorage.getItem(STORAGE_KEY); if(s) state = {...state,...JSON.parse(s)}; } catch(e){}
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+/* ════════════════════════════════════════
+   VIEW
+════════════════════════════════════════ */
+let currentView = 'day';
+function setView(v, el) {
+  currentView = v;
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderAll();
+}
+function goToday() {
+  state.selectedDate = todayStr();
+  saveState();
+  renderAll();
+}
+
+/* ════════════════════════════════════════
+   DATE STRIP
+════════════════════════════════════════ */
+function renderDateStrip() {
+  const strip = document.getElementById('dateStrip');
+  const today = todayStr();
+  const sel = new Date(state.selectedDate + 'T00:00:00');
+  const days = [];
+  for(let i=-4; i<=20; i++){
+    const d = new Date(sel); d.setDate(d.getDate()+i); days.push(d);
+  }
+  const DOW = ['日','月','火','水','木','金','土'];
+  strip.innerHTML = days.map(d=>{
+    const ds = d.toISOString().slice(0,10);
+    const posts = state.posts.filter(p=>p.date===ds);
+    const dots = state.types.slice(0,3).map(t=>
+      posts.some(p=>p.typeId===t.id)
+        ? `<div class="date-dot" style="background:${t.color}"></div>` : ''
+    ).join('');
+    return `<div class="date-cell ${ds===today?'today':''} ${ds===state.selectedDate?'selected':''}"
+      onclick="selectDate('${ds}')">
+      <div class="dow">${DOW[d.getDay()]}</div>
+      <div class="day">${d.getDate()}</div>
+      <div class="dot-row">${dots}</div>
+    </div>`;
+  }).join('');
+  strip.querySelector('.selected')?.scrollIntoView({block:'nearest',inline:'center'});
+}
+function selectDate(ds) {
+  state.selectedDate = ds; saveState(); renderAll();
+}
+
+/* ════════════════════════════════════════
+   STATS
+════════════════════════════════════════ */
+function renderStats(posts) {
+  const done = posts.filter(p=>p.done).length;
+  const remain = posts.length - done;
+  document.getElementById('statsRow').innerHTML = [
+    { n: posts.length, l: '投稿数', c: null },
+    { n: done,         l: '投稿済み', c: done>0 ? 'var(--accent3)' : null },
+    { n: remain,       l: '残り',    c: remain>0 ? 'var(--accent2)' : null },
+    { n: posts.reduce((s,p)=>(p.text||'').length+s, 0), l: '総文字', c: null },
+  ].map(s=>`<div class="stat-pill">
+    <div class="stat-num" ${s.c?`style="color:${s.c}"`:''}>${s.n}</div>
+    <div class="stat-lbl">${s.l}</div>
+  </div>`).join('');
+}
+
+/* ════════════════════════════════════════
+   CONTENT
+════════════════════════════════════════ */
+function getPosts(date) {
+  return state.posts.filter(p=>p.date===date).sort((a,b)=>a.order-b.order);
+}
+
+function renderContent() {
+  const area = document.getElementById('scrollContent');
+  const today = todayStr();
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  let dates = [];
+  if(currentView==='week'){
+    const sel = new Date(state.selectedDate+'T00:00:00');
+    const day = sel.getDay();
+    const mon = new Date(sel); mon.setDate(sel.getDate()-(day===0?6:day-1));
+    for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); dates.push(d.toISOString().slice(0,10)); }
+  } else {
+    dates = [state.selectedDate];
+  }
+
+  let allPosts = [];
+  dates.forEach(ds=>{ allPosts = allPosts.concat(getPosts(ds)); });
+  renderStats(allPosts);
+
+  // section header
+  if(currentView==='day'){
+    const d = new Date(state.selectedDate+'T00:00:00');
+    document.getElementById('sectionTitle').textContent = state.selectedDate===today
+      ? '今日の投稿' : `${d.getMonth()+1}月${d.getDate()}日（${DOW[d.getDay()]}）`;
+  } else {
+    document.getElementById('sectionTitle').textContent = '今週の投稿';
+  }
+  document.getElementById('sectionCount').textContent = allPosts.length ? `${allPosts.length}件` : '';
+
+  let html = '';
+  for(const ds of dates){
+    const posts = getPosts(ds);
+    if(currentView==='week'){
+      const d = new Date(ds+'T00:00:00');
+      const isT = ds===today;
+      html += `<div class="week-divider ${isT?'is-today':''}">
+        ${DOW[d.getDay()]}・${d.getMonth()+1}/${d.getDate()}${isT?' 🔵':''}
+        <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:4px;">${posts.length}件</span>
+        <div class="week-divider-line"></div>
+      </div>`;
+    }
+    if(posts.length===0){
+      if(currentView==='day'){
+        html += `<div class="empty-state">
+          <div class="empty-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <div class="empty-title">投稿がありません</div>
+          <div class="empty-sub">＋ボタンで追加するか<br>ルーティンを適用してみましょう</div>
+        </div>`;
+      }
+      continue;
+    }
+    posts.forEach((post, idx) => {
+      const type = state.types.find(t=>t.id===post.typeId);
+      const color = type?.color||'#666';
+      const name = type?.name||'未設定';
+      const chars = (post.text||'').length;
+      const isEditing = post._editing;
+      html += `<div class="post-card" id="card-${post.id}" style="border-left-color:${color};">
+        <div class="card-head">
+          <div class="type-badge" style="background:${color}20;color:${color};">
+            <div class="type-dot" style="background:${color};"></div>
+            ${escHtml(name)}
+          </div>
+          <div class="card-idx">#${idx+1}</div>
+          <div class="card-actions">
+            <button class="mini-btn" onclick="toggleEdit('${post.id}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="mini-btn" onclick="deletePost('${post.id}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-body" id="body-${post.id}">
+          ${isEditing
+            ? `<textarea class="edit-textarea" id="ta-${post.id}" rows="5">${escAttr(post.text||'')}</textarea>`
+            : post.text
+              ? `<div class="post-text">${escHtml(post.text)}</div>`
+              : `<div class="post-text-empty">（投稿文が未入力です）</div>`
+          }
+        </div>
+        <div class="card-foot">
+          <span class="char-count">${chars}字</span>
+          <div class="spacer"></div>
+          ${isEditing
+            ? `<button class="btn-sm btn-save-sm" onclick="saveEdit('${post.id}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                保存
+              </button>`
+            : `<button class="btn-sm btn-edit-sm" onclick="toggleEdit('${post.id}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                編集
+              </button>`
+          }
+          <button class="btn-sm btn-done-sm ${post.done?'done':''}" onclick="toggleDone('${post.id}')">
+            ${post.done
+              ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> 投稿済み`
+              : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 完了にする`
+            }
+          </button>
+        </div>
+      </div>`;
+    });
+  }
+
+  area.innerHTML = html || (currentView==='week' ? '' : '');
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ════════════════════════════════════════
+   POST ACTIONS
+════════════════════════════════════════ */
+function toggleEdit(id){
+  const p = state.posts.find(p=>p.id===id); if(!p) return;
+  p._editing = !p._editing;
+  renderContent();
+  if(p._editing){ const ta=document.getElementById('ta-'+id); if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);} }
+}
+function saveEdit(id){
+  const p = state.posts.find(p=>p.id===id); if(!p) return;
+  const ta = document.getElementById('ta-'+id);
+  if(ta) p.text = ta.value;
+  p._editing = false;
+  saveState(); renderAll();
+}
+function toggleDone(id){
+  const p = state.posts.find(p=>p.id===id);
+  if(p){ p.done=!p.done; saveState(); renderContent(); renderStats(state.posts.filter(pp=>pp.date===state.selectedDate)); }
+}
+function deletePost(id){
+  if(!confirm('この投稿を削除しますか？')) return;
+  state.posts = state.posts.filter(p=>p.id!==id);
+  saveState(); renderAll();
+}
+
+/* ════════════════════════════════════════
+   ADD POST SHEET
+════════════════════════════════════════ */
+function openAddPostSheet(){
+  document.getElementById('postDate').value = state.selectedDate;
+  const sel = document.getElementById('postType');
+  sel.innerHTML = state.types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const firstType = state.types[0];
+  document.getElementById('postText').value = firstType?.template||'';
+  openSheet('addPostOverlay');
+}
+function onPostTypeChange(){
+  const sel = document.getElementById('postType');
+  const t = state.types.find(tt=>tt.id===sel.value);
+  const ta = document.getElementById('postText');
+  if(t && t.template){ ta.value = t.template; }
+}
+function savePost(){
+  const date = document.getElementById('postDate').value;
+  const typeId = document.getElementById('postType').value;
+  const text = document.getElementById('postText').value;
+  if(!date){ showToast('日付を選択してください'); return; }
+  const existing = state.posts.filter(p=>p.date===date);
+  state.posts.push({ id:'p'+Date.now(), date, typeId, text, done:false, order:existing.length });
+  saveState(); closeSheet('addPostOverlay');
+  document.getElementById('postText').value='';
+  renderAll(); showToast('✅ 投稿を追加しました');
+}
+
+/* ════════════════════════════════════════
+   TYPES SHEET
+════════════════════════════════════════ */
+function openTypesSheet(){
+  const body = document.getElementById('typesSheetBody');
+  body.innerHTML = state.types.map(t=>{
+    const count = state.posts.filter(p=>p.typeId===t.id).length;
+    return `<div class="type-list-item">
+      <div class="type-list-dot" style="background:${t.color}"></div>
+      <div class="type-list-name">${escHtml(t.name)}</div>
+      <div class="type-list-count">${count}件</div>
+    </div>`;
+  }).join('');
+  openSheet('typesOverlay');
+}
+
+/* ════════════════════════════════════════
+   ADD TYPE
+════════════════════════════════════════ */
+const COLORS = ['#7c6dfa','#fa6d9a','#6dfac2','#fac06d','#6dbbfa','#fa9d6d','#c06dfa','#d4fa6d'];
+let selectedColor = COLORS[0];
+function openAddTypeSheet(){
+  selectedColor = COLORS[state.types.length % COLORS.length];
+  renderColorPicker();
+  document.getElementById('typeName').value='';
+  document.getElementById('typeTemplate').value='';
+  openSheet('addTypeOverlay');
+}
+function renderColorPicker(){
+  document.getElementById('colorPicker').innerHTML = COLORS.map(c=>`
+    <div class="color-swatch ${c===selectedColor?'selected':''}"
+      style="background:${c}"
+      onclick="selectColor('${c}',this)"></div>`).join('');
+}
+function selectColor(c,el){
+  selectedColor=c;
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function saveType(){
+  const name = document.getElementById('typeName').value.trim();
+  if(!name){ showToast('型の名前を入力してください'); return; }
+  state.types.push({ id:'t'+Date.now(), name, color:selectedColor, template:document.getElementById('typeTemplate').value });
+  saveState(); closeSheet('addTypeOverlay'); renderAll(); showToast('✅ 型を追加しました');
+}
+
+/* ════════════════════════════════════════
+   ROUTINE
+════════════════════════════════════════ */
+const DOW_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+const DOW_JP_LABELS = ['月','火','水','木','金','土','日'];
+let editingSlot = null;
+
+function openRoutineSheet(){
+  renderRoutineGrid();
+  openSheet('routineOverlay');
+}
+function renderRoutineGrid(){
+  const grid = document.getElementById('routineGrid');
+  const maxSlots = Math.max(3, ...DOW_KEYS.map(k=>(state.routine[k]||[]).length+1));
+  let html = DOW_JP_LABELS.map(l=>`<div class="rg-label">${l}</div>`).join('');
+  for(let si=0;si<maxSlots;si++){
+    html += DOW_KEYS.map(dk=>{
+      const slots = state.routine[dk]||[];
+      const tid = slots[si];
+      const type = tid ? state.types.find(t=>t.id===tid) : null;
+      return `<div class="rg-slot ${type?'filled':''}"
+        style="${type?`background:${type.color}22;border-color:${type.color}66;color:${type.color};`:''}"
+        onclick="openSlotPicker('${dk}',${si})">
+        ${type ? type.name.slice(0,4) : '＋'}
+      </div>`;
+    }).join('');
+  }
+  grid.innerHTML = html;
+}
+function openSlotPicker(dayKey, slotIndex){
+  editingSlot = { dayKey, slotIndex };
+  const DOW_JP = {mon:'月',tue:'火',wed:'水',thu:'木',fri:'金',sat:'土',sun:'日'};
+  document.getElementById('slotSheetTitle').textContent = `${DOW_JP[dayKey]}曜日 スロット${slotIndex+1}`;
+  document.getElementById('slotTypeList').innerHTML = state.types.map(t=>`
+    <div class="slot-type-item" onclick="setSlotType('${t.id}')"
+      style="background:${t.color}12;border-color:${t.color}44;color:${t.color};">
+      <div style="width:10px;height:10px;border-radius:50%;background:${t.color};flex-shrink:0;"></div>
+      <span style="font-size:14px;font-weight:600;">${escHtml(t.name)}</span>
+    </div>`).join('');
+  openSheet('slotOverlay');
+}
+function setSlotType(typeId){
+  if(!editingSlot) return;
+  const { dayKey, slotIndex } = editingSlot;
+  if(!state.routine[dayKey]) state.routine[dayKey]=[];
+  state.routine[dayKey][slotIndex] = typeId;
+  saveState(); closeSheet('slotOverlay'); renderRoutineGrid();
+}
+function clearSlot(){
+  if(!editingSlot) return;
+  const { dayKey, slotIndex } = editingSlot;
+  if(state.routine[dayKey]){
+    state.routine[dayKey].splice(slotIndex,1);
+    if(state.routine[dayKey].length===0) delete state.routine[dayKey];
+    saveState();
+  }
+  closeSheet('slotOverlay'); renderRoutineGrid();
+}
+function applyRoutine(){
+  const sel = new Date(state.selectedDate+'T00:00:00');
+  const day = sel.getDay();
+  const mon = new Date(sel); mon.setDate(sel.getDate()-(day===0?6:day-1));
+  let added = 0;
+  DOW_KEYS.forEach((dk,i)=>{
+    const slots = state.routine[dk]||[];
+    if(!slots.length) return;
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
+    const ds = d.toISOString().slice(0,10);
+    slots.forEach(typeId=>{
+      if(!typeId) return;
+      const type = state.types.find(t=>t.id===typeId);
+      const existing = state.posts.filter(p=>p.date===ds);
+      state.posts.push({ id:'p'+Date.now()+Math.random(), date:ds, typeId, text:type?.template||'', done:false, order:existing.length });
+      added++;
+    });
+  });
+  saveState(); closeSheet('routineOverlay'); renderAll();
+  showToast(`✅ ${added}件の投稿を追加しました`);
+}
+
+/* ════════════════════════════════════════
+   SHEET HELPERS
+════════════════════════════════════════ */
+function openSheet(id){ document.getElementById(id).classList.add('open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
+});
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ════════════════════════════════════════
+   RENDER ALL
+════════════════════════════════════════ */
+function renderAll(){
+  renderDateStrip();
+  renderContent();
+}
+
+/* ════════════════════════════════════════
+   PWA — SERVICE WORKER & INSTALL
+════════════════════════════════════════ */
+let deferredPrompt = null;
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+  if(outcome==='accepted') showToast('🎉 ホーム画面に追加しました！');
+});
+window.addEventListener('appinstalled', ()=>{
+  document.getElementById('installBanner').classList.remove('show');
+  showToast('🎉 インストール完了！');
+});
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+loadState();
+if(state.posts.length===0){
+  const today = todayStr();
+  state.posts = [
+    { id:'demo1', date:today, typeId:'t1', text:'✅ 気づき\n\n「副業で稼ぐ」って難しそうに見えて\n実は仕組みさえ整えれば意外とシンプル。\n\n私が最初に変えたのは\n投稿の「型」を決めたことでした。\n\n→ 型があると迷わず書ける、継続できる、信頼が積み上がる。\n\nやることが明確になると行動が変わります🔥', done:false, order:0 },
+    { id:'demo2', date:today, typeId:'t3', text:'💡 Threadsで読まれる投稿3つのコツ\n\n①最初の一文で「誰向けか」を明示する\n②改行を多めに使って読みやすくする\n③最後に次のアクションを促す\n\n今日からすぐ使えます。', done:false, order:1 },
+  ];
+  saveState();
+}
+renderAll();
+</script>
+</body>
+</html>
