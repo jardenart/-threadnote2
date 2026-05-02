@@ -245,6 +245,40 @@ select.fi{cursor:pointer;}
 .sw:active{transform:scale(1.1);}
 .sw.on{border-color:#fff;}
 
+/* UPCOMING */
+.upcoming-sec{margin:6px 14px 0;}
+.upcoming-toggle{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 0 8px;cursor:pointer;
+  border:none;background:none;width:100%;text-align:left;
+  color:var(--text2);font-family:'DM Sans',sans-serif;
+  border-top:1px solid var(--border);
+}
+.upcoming-toggle:active{opacity:.7;}
+.upcoming-toggle-icon{
+  width:28px;height:28px;border-radius:8px;
+  background:var(--card2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:transform .2s;
+}
+.upcoming-toggle-icon.open{transform:rotate(90deg);}
+.upcoming-label{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.upcoming-count{font-size:11px;color:var(--text3);margin-left:auto;}
+.upcoming-list{display:none;}
+.upcoming-list.open{display:block;}
+
+.ucard{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);margin-bottom:8px;
+  border-left:3px solid transparent;overflow:hidden;
+  cursor:pointer;transition:all .15s;opacity:.75;
+}
+.ucard:active{transform:scale(.98);}
+.ucard-head{display:flex;align-items:center;gap:8px;padding:10px 14px 6px;}
+.ucard-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:auto;}
+.ucard-prev{padding:0 14px 10px;font-size:12px;color:var(--text3);line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+
 /* CHECKBOX */
 .cb{
   width:22px;height:22px;border-radius:6px;flex-shrink:0;
@@ -298,6 +332,8 @@ select.fi{cursor:pointer;}
         <button class="sec-link" onclick="showTab('sc-schedule')">スケジュール編集 →</button>
       </div>
       <div id="home-list"></div>
+      <!-- 翌日以降 -->
+      <div id="home-upcoming"></div>
     </div>
   </div>
 
@@ -305,9 +341,14 @@ select.fi{cursor:pointer;}
   <div class="screen" id="sc-types">
     <div class="topbar">
       <div><div class="tb-title">型 <span>ライブラリ</span></div><div class="tb-sub" id="type-sub"></div></div>
-      <button class="icon-btn pri" onclick="openAddTypeSheet()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" onclick="openBackupSheet()" title="バックアップ・インポート">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+        </button>
+        <button class="icon-btn pri" onclick="openAddTypeSheet()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
     </div>
     <div class="scroll" style="padding:10px 0 calc(var(--nav) + var(--sab) + 10px);">
       <div id="type-list"></div>
@@ -318,9 +359,15 @@ select.fi{cursor:pointer;}
   <div class="screen" id="sc-schedule">
     <div class="topbar">
       <div><div class="tb-title">スケジュール</div><div class="tb-sub" id="sch-sub"></div></div>
-      <button class="icon-btn" onclick="openCycleModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      </button>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" onclick="openAutoFillSheet()" title="自動配置" style="position:relative;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <div style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--amber);border:2px solid var(--bg2);"></div>
+        </button>
+        <button class="icon-btn" onclick="openCycleModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        </button>
+      </div>
     </div>
     <div class="week-tabs" id="week-tabs"></div>
     <div class="scroll" style="padding:4px 0 calc(var(--nav) + var(--sab) + 10px);" id="sch-body"></div>
@@ -581,6 +628,7 @@ function renderHome(){
       <div class="empty-ttl">今日の投稿がありません</div>
       <div class="empty-sub">スケジュールタブから型を設定しましょう</div>
     </div>`;
+    renderUpcoming();
     return;
   }
   list.innerHTML=slots.map((sl,i)=>{
@@ -610,7 +658,114 @@ function renderHome(){
       </div>
     </div>`;
   }).join('');
+  renderUpcoming();
 }
+function renderUpcoming(){
+  const container = document.getElementById('home-upcoming');
+  if(!container) return;
+
+  const DOW_FULL=['日','月','火','水','木','金','土'];
+  // 今日から最大14日先まで、投稿があるものを収集
+  const upcoming = [];
+  const todayDate = new Date(today()+'T00:00:00');
+
+  for(let offset=1; offset<=28; offset++){
+    const d = new Date(todayDate);
+    d.setDate(d.getDate()+offset);
+    const ds = d.toISOString().slice(0,10);
+    // 何週目か計算
+    const start = new Date(S.cycleStart+'T00:00:00');
+    const diff = Math.max(0,Math.floor((d-start)/86400000));
+    const wn = (Math.floor(diff/7)%4)+1;
+    const dk = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+    const slots = (S.schedule[wn]?.[dk])||[];
+    upcoming.push({d, ds, wn, dk, slots});
+    if(upcoming.length >= 7) break; // 最大7日分
+  }
+
+  const isOpen = container.dataset.open === '1';
+  const totalCount = upcoming.reduce((s,u)=>s+u.slots.length,0);
+
+  let html = `<div class="upcoming-sec">
+    <button class="upcoming-toggle" onclick="toggleUpcoming()">
+      <div class="upcoming-toggle-icon ${isOpen?'open':''}">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <span class="upcoming-label">翌日以降の投稿</span>
+      <span class="upcoming-count">${upcoming.length}日 / ${totalCount}件</span>
+    </button>
+    <div class="upcoming-list ${isOpen?'open':''}">`;
+
+  upcoming.forEach(({d, ds, wn, dk, slots})=>{
+    const dayLabel = `${d.getMonth()+1}/${d.getDate()}（${DOW_FULL[d.getDay()]}） WEEK${wn}`;
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);padding:2px 0 6px;letter-spacing:.3px;">${dayLabel}</div>`;
+    if(!slots.length){
+      html += `<div style="padding:10px 12px;border-radius:10px;background:var(--card2);border:1px solid var(--border);font-size:12px;color:var(--text3);text-align:center;">投稿なし</div>`;
+    } else {
+      slots.forEach((sl,i)=>{
+        const type = S.types.find(t=>t.id===sl.typeId);
+        if(!type) return;
+        const prev = type.slots?.[0]?.text||'';
+        html += `<div class="ucard" style="border-left-color:${type.color};"
+          onclick="openPostOvFuture('${sl.typeId}')">
+          <div class="ucard-head">
+            <div class="badge" style="background:${type.color}18;color:${type.color};font-size:10px;">
+              <div class="dot" style="background:${type.color};width:5px;height:5px;"></div>${esc(type.name)}
+            </div>
+            <div class="ucard-date">${sl.time||'--:--'}</div>
+          </div>
+          ${prev?`<div class="ucard-prev">${esc(prev)}</div>`:''}
+        </div>`;
+      });
+    }
+    html += '</div>';
+  });
+
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function toggleUpcoming(){
+  const container = document.getElementById('home-upcoming');
+  if(!container) return;
+  container.dataset.open = container.dataset.open==='1' ? '0' : '1';
+  renderUpcoming();
+}
+
+// 翌日以降の型をプレビュー（編集なし・参照のみ）
+function openPostOvFuture(typeId){
+  _curTypeId = typeId;
+  _curPk = '';
+  _curTree = 0;
+  const type = S.types.find(t=>t.id===typeId);
+  if(!type) return;
+  const slots = type.slots||[{text:'',note:''}];
+  document.getElementById('post-ov-title').textContent = type.name + '（参照）';
+  const tabs = slots.map((s,i)=>`<div class="ttab ${i===0?'on':''}" onclick="switchPostTreeFuture(${i},'${typeId}')">${i+1}/${slots.length}</div>`).join('');
+  const cur = slots[0]||{};
+  document.getElementById('post-ov-body').innerHTML=`
+    <div class="tree-tab-row" style="margin:0;">${tabs}</div>
+    <div style="background:var(--card2);border-radius:12px;padding:14px;">
+      <div id="future-text" style="font-size:14px;line-height:1.85;color:var(--text);white-space:pre-wrap;">${esc(cur.text||'（テキストなし）')}</div>
+    </div>
+    ${cur.note?`<div style="background:rgba(123,110,246,.08);border:1px solid rgba(123,110,246,.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);">📎 ${esc(cur.note)}</div>`:''}
+  `;
+  openOv('ov-post');
+}
+
+function switchPostTreeFuture(i, typeId){
+  const type = S.types.find(t=>t.id===typeId);
+  if(!type) return;
+  const cur = type.slots?.[i]||{};
+  const el = document.getElementById('future-text');
+  if(el) el.textContent = cur.text||'（テキストなし）';
+  // タブ更新
+  document.querySelectorAll('#post-ov-body .ttab').forEach((t,ti)=>{
+    t.classList.toggle('on', ti===i);
+  });
+}
+
 function resetTodayDone(){
   const td=today(),wn=getWeekNum(),dk=getTodayDow();
   const pfx=`${td}-${wn}-${dk}-`;
@@ -993,6 +1148,517 @@ if(S.types.length===0){
   save();
 }
 
+
+
+
+// ════════════════════════════════════════
+// AUTO FILL
+// ════════════════════════════════════════
+let _afDows = new Set(['mon','tue','wed','thu','fri']);
+let _afDayCount = 1;   // 1日の投稿数
+let _afResult = null;
+
+function openAutoFillSheet(){
+  if(!S.types.length){
+    toast('先に「型」タブで型を登録してください');
+    return;
+  }
+  _afDows = new Set(['mon','tue','wed','thu','fri']);
+  _afDayCount = 1;
+  _afResult = null;
+  renderAfDowGrid();
+  renderAfCountGrid();
+  updateAfTotalInfo();
+  document.getElementById('af-preview').style.display = 'none';
+  openOv('ov-autofill');
+}
+
+function renderAfDowGrid(){
+  const grid = document.getElementById('af-dow-grid');
+  if(!grid) return;
+  grid.innerHTML = DOW.map(dk=>{
+    const on = _afDows.has(dk);
+    return `<div onclick="toggleAfDow('${dk}')" style="
+      flex:1;text-align:center;padding:10px 2px;border-radius:9px;
+      border:1px solid ${on ? 'var(--p)' : 'var(--border)'};
+      background:${on ? 'rgba(123,110,246,.15)' : 'var(--card2)'};
+      color:${on ? 'var(--p2)' : 'var(--text3)'};
+      font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;user-select:none;">
+      ${DOWJP[dk]}
+    </div>`;
+  }).join('');
+}
+
+function toggleAfDow(dk){
+  if(_afDows.has(dk)){
+    if(_afDows.size <= 1){ toast('最低1曜日は選択してください'); return; }
+    _afDows.delete(dk);
+  } else {
+    _afDows.add(dk);
+  }
+  renderAfDowGrid();
+  updateAfTotalInfo();
+  resetAfPreview();
+}
+
+function renderAfCountGrid(){
+  const grid = document.getElementById('af-count-grid');
+  if(!grid) return;
+  [1,2,3,4,5].forEach(n=>{
+    const on = n === _afDayCount;
+    grid.innerHTML += ``;
+  });
+  grid.innerHTML = [1,2,3,4,5,6,7,8,9,10].map(n=>{
+    const on = n === _afDayCount;
+    return `<button onclick="setAfDayCount(${n})" style="
+      padding:9px 12px;border-radius:10px;
+      border:1px solid ${on ? 'var(--amber)' : 'var(--border)'};
+      background:${on ? 'rgba(255,183,77,.15)' : 'var(--card2)'};
+      color:${on ? 'var(--amber)' : 'var(--text2)'};
+      font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
+      cursor:pointer;transition:all .15s;">
+      ${n}
+    </button>`;
+  }).join('');
+}
+
+function setAfDayCount(n){
+  _afDayCount = n;
+  renderAfCountGrid();
+  updateAfTotalInfo();
+  resetAfPreview();
+}
+
+function updateAfTotalInfo(){
+  const info = document.getElementById('af-total-info');
+  if(!info) return;
+  const dowCount = _afDows.size;
+  const totalSlots = 4 * dowCount * _afDayCount; // 4週 × 曜日数 × 1日投稿数
+  const typeCount = S.types.length;
+  info.style.display = 'block';
+  info.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-weight:700;color:var(--text);">合計スロット数</span>
+      <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--p2);">${totalSlots}件</span>
+    </div>
+    <div style="font-size:12px;line-height:1.8;">
+      4週 × 週${dowCount}日 × ${_afDayCount}投稿 = ${totalSlots}スロット<br>
+      登録型${typeCount}件 → ${typeCount >= totalSlots ? '全型が収まります' : `${Math.ceil(totalSlots/typeCount)}周して配置`}
+    </div>`;
+}
+
+function resetAfPreview(){
+  _afResult = null;
+  document.getElementById('af-preview').style.display = 'none';
+}
+
+// ── コアアルゴリズム ──
+function buildAutoFillSchedule(){
+  const typeIds = S.types.map(t => t.id);
+  const dows = DOW.filter(dk => _afDows.has(dk));
+  const weeks = [1,2,3,4];
+  const totalSlots = weeks.length * dows.length * _afDayCount;
+
+  // 型を均等に繰り返してtotalSlots分生成
+  function buildPool(ids, count){
+    const result = [];
+    for(let i = 0; i < count; i++){
+      result.push(ids[i % ids.length]);
+    }
+    return result;
+  }
+
+  // Fisher-Yatesシャッフル
+  function shuffle(arr){
+    const a = [...arr];
+    for(let i = a.length-1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  // 同じ型が連続しないよう並び替え（インターリーブ）
+  function deconflict(arr){
+    if(arr.length <= 1) return arr;
+    const freq = {};
+    arr.forEach(id => { freq[id] = (freq[id]||0)+1; });
+    const maxFreq = Math.max(...Object.values(freq));
+    // 分散不可能なら素直にシャッフル
+    if(maxFreq > Math.ceil(arr.length / 2)) return shuffle(arr);
+
+    // バケツに分けてインターリーブ
+    const buckets = Object.entries(freq)
+      .sort((a,b) => b[1]-a[1])
+      .map(([id, cnt]) => Array(cnt).fill(id));
+    const result = [];
+    let safety = arr.length * 3;
+    while(result.length < arr.length && safety-- > 0){
+      for(let b = 0; b < buckets.length; b++){
+        if(!buckets[b].length) continue;
+        const last = result[result.length-1];
+        if(buckets[b][0] !== last){
+          result.push(buckets[b].shift());
+          break;
+        }
+        // 次のバケツに回す
+        if(b === buckets.length-1){
+          // 全バケツが同じIDなら強制追加
+          result.push(buckets[0].shift());
+        }
+      }
+    }
+    return result;
+  }
+
+  // poolを作って分散
+  let pool = buildPool(shuffle(typeIds), totalSlots);
+  pool = deconflict(pool);
+
+  // week×dow×dayCountのグリッドに割り当て
+  const schedule = {};
+  weeks.forEach(w => {
+    schedule[w] = {};
+    DOW.forEach(dk => schedule[w][dk] = []);
+  });
+
+  let idx = 0;
+  // week→dow→dayCount の順で埋める（週をまたいで均等に）
+  for(let di = 0; di < _afDayCount; di++){
+    weeks.forEach(w => {
+      dows.forEach(dk => {
+        if(idx < pool.length){
+          if(!schedule[w][dk]) schedule[w][dk] = [];
+          schedule[w][dk].push({ typeId: pool[idx], time: '' });
+          idx++;
+        }
+      });
+    });
+  }
+
+  return schedule;
+}
+
+function previewAutoFill(){
+  if(!_afDows.size){ toast('曜日を選択してください'); return; }
+  _afResult = buildAutoFillSchedule();
+
+  const preview = document.getElementById('af-preview');
+  const body = document.getElementById('af-preview-body');
+  preview.style.display = 'block';
+
+  const dows = DOW.filter(dk => _afDows.has(dk));
+  let preHtml = '';
+  [1,2,3,4].forEach(w => {
+    preHtml += `<div>
+      <div style="font-size:10px;font-weight:700;color:var(--p2);letter-spacing:.5px;margin-bottom:6px;font-family:'DM Mono',monospace;">WEEK ${w}</div>
+      <div style="display:flex;flex-direction:column;gap:3px;">`;
+    dows.forEach(dk => {
+      const slots = (_afResult[w]?.[dk]) || [];
+      if(!slots.length) return;
+      preHtml += `<div style="display:flex;align-items:center;gap:6px;">
+        <div style="width:20px;font-size:11px;font-weight:700;color:var(--text3);flex-shrink:0;">${DOWJP[dk]}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+      slots.forEach(sl => {
+        const type = S.types.find(t => t.id === sl.typeId);
+        if(!type) return;
+        preHtml += `<div style="padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;
+          background:${type.color}18;border:1px solid ${type.color}44;color:${type.color};">
+          ${esc(type.name)}
+        </div>`;
+      });
+      preHtml += `</div></div>`;
+    });
+    preHtml += '</div></div>';
+  });
+  body.innerHTML = preHtml;
+  toast('✅ プレビューを確認してください');
+}
+
+function execAutoFill(){
+  if(!_afResult){
+    previewAutoFill();
+    setTimeout(()=>{
+      if(_afResult) _doExec();
+    }, 100);
+    return;
+  }
+  _doExec();
+}
+
+function _doExec(){
+  if(!_afResult) return;
+  [1,2,3,4].forEach(w => { S.schedule[w] = _afResult[w]; });
+  save();
+  closeOv('ov-autofill');
+  renderSchedule();
+  const total = 4 * _afDows.size * _afDayCount;
+  toast(`⚡ ${total}スロットを自動配置しました！`);
+  _afResult = null;
+}
+
+
+// ════════════════════════════════════════
+// BACKUP & IMPORT
+// ════════════════════════════════════════
+let _importData = null;
+
+function openBackupSheet(){
+  document.getElementById('export-count').textContent = S.types.length;
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-confirm-btn').style.display = 'none';
+  document.getElementById('import-file').value = '';
+  _importData = null;
+  openOv('ov-backup');
+}
+
+function exportTypes(){
+  if(!S.types.length){ toast('エクスポートする型がありません'); return; }
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    appName: 'PostFlow',
+    types: S.types,
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `postflow-types-${date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`⬇️ ${S.types.length}件の型をエクスポートしました`);
+}
+
+function importTypes(e){
+  const file = e.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // バリデーション
+      if(!data.types || !Array.isArray(data.types)){
+        toast('⚠️ 正しいPostFlowのバックアップファイルではありません');
+        return;
+      }
+      const types = data.types.filter(t => t.id && t.name && t.color);
+      if(!types.length){
+        toast('⚠️ 読み込める型がありません');
+        return;
+      }
+      _importData = types;
+      // プレビュー表示
+      const prev = document.getElementById('import-preview');
+      const btn = document.getElementById('import-confirm-btn');
+      prev.style.display = 'block';
+      prev.innerHTML = `
+        <div style="font-weight:700;color:var(--text);margin-bottom:8px;">📋 ${types.length}件の型を検出</div>
+        ${types.map(t => `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+            <div style="width:8px;height:8px;border-radius:50%;background:${t.color};flex-shrink:0;"></div>
+            <span style="font-size:12px;color:var(--text);">${esc(t.name)}</span>
+            <span style="font-size:10px;color:var(--text3);margin-left:auto;">${t.slots?.length||1}スロット</span>
+          </div>`).join('')}
+      `;
+      btn.style.display = 'flex';
+    } catch(err) {
+      toast('⚠️ ファイルの読み込みに失敗しました');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmImport(){
+  if(!_importData || !_importData.length){ toast('インポートするデータがありません'); return; }
+  // 重複IDを避けて追加
+  let added = 0;
+  _importData.forEach(t => {
+    const exists = S.types.find(tt => tt.id === t.id);
+    if(exists){
+      // IDが被る場合は新しいIDを付与して追加
+      S.types.push({...t, id: 't' + Date.now() + Math.random()});
+    } else {
+      S.types.push(t);
+    }
+    added++;
+  });
+  save();
+  closeOv('ov-backup');
+  renderTypes();
+  toast(`✅ ${added}件の型をインポートしました`);
+  _importData = null;
+}
+
+// ════════════════════════════════════════
+// TUTORIAL
+// ════════════════════════════════════════
+const TUT_KEY = 'postflow_tutored';
+const SLIDES = [
+  {
+    emoji: '👋',
+    color: '#a593ff',
+    tag: 'WELCOME',
+    title: 'PostFlowへ\nようこそ！',
+    body: 'Threadsの投稿を「型」で管理して\nルーティン化するアプリです。\n\nまず使い方を説明します。',
+    note: null, cta: false,
+  },
+  {
+    emoji: '📋',
+    color: '#7b6ef6',
+    tag: 'STEP 1',
+    title: '投稿の「型」を\n登録する',
+    body: '「型」タブから投稿パターンを登録します。\n\n共感系・ノウハウ系・CTA など自分のスタイルで自由に作成。\n\nツリー投稿（1/3・2/3・3/3）も\n1セットでまとめて登録できます。',
+    note: null, cta: false,
+  },
+  {
+    emoji: '📅',
+    color: '#4dd0c4',
+    tag: 'STEP 2',
+    title: 'スケジュールに\n当てはめる',
+    body: '「スケジュール」タブでWEEK 1〜4\n× 曜日ごとに型を配置します。\n\n投稿時間も設定できます。\n\n4週のローテーションが自動で繰り返されます。',
+    note: null, cta: false,
+  },
+  {
+    emoji: '🏠',
+    color: '#f06292',
+    tag: 'STEP 3',
+    title: '今日の投稿を\n確認・コピー',
+    body: '「ホーム」タブに今日の投稿が\n自動で表示されます。\n\nカードをタップして投稿文を編集・コピー。\n\n投稿したらチェックを入れて管理しましょう。',
+    note: null, cta: false,
+  },
+  {
+    emoji: '⚠️',
+    color: '#ffb74d',
+    tag: '注意事項',
+    title: '使う前に\n確認してください',
+    body: '① データはこの端末のみに保存されます。他の端末とは同期されません。\n\n② アプリを削除するとデータも消えます。投稿文は別途バックアップを推奨します。\n\n③ 画像フォルダは容量に上限があります。大量の画像登録は避けてください。',
+    note: 'iPhoneの方：Safariで開き「共有 → ホーム画面に追加」でインストールできます。',
+    cta: false,
+  },
+  {
+    emoji: '🚀',
+    color: '#a593ff',
+    tag: 'MADE BY',
+    title: '無料で使えます',
+    body: 'PostFlowは @kou_logo5 が\n無料で配布しています。\n\n使ってみた感想を #PostFlow で\nシェアしてくれると嬉しいです🙌\n\n新機能はThreadsでお知らせします。',
+    note: null, cta: true,
+  },
+];
+
+let _tutIdx = 0;
+
+function showTutorial(){
+  _tutIdx = 0;
+  renderTutSlide();
+  const el = document.getElementById('tutorial');
+  el.style.display = 'block';
+  el.style.opacity = '0';
+  el.style.transition = 'opacity .4s ease';
+  requestAnimationFrame(()=>{ el.style.opacity = '1'; });
+}
+
+function renderTutSlide(){
+  const s = SLIDES[_tutIdx];
+  const total = SLIDES.length;
+  const isLast = _tutIdx === total - 1;
+
+  // 進捗バー
+  const bar=document.getElementById('tut-bar');
+  if(bar) bar.style.width = `${((_tutIdx+1)/total)*100}%`;
+
+  // ドット
+  const dotsEl=document.getElementById('tut-dots');
+  if(dotsEl) dotsEl.innerHTML = SLIDES.map((_,i)=>
+    `<div style="width:${i===_tutIdx?'18px':'6px'};height:6px;border-radius:3px;
+      background:${i===_tutIdx?'var(--p)':'rgba(255,255,255,.2)'};transition:all .3s;"></div>`
+  ).join('');
+
+  // 次へ/はじめるボタン
+  const nextBtn = document.getElementById('tut-next');
+  if(nextBtn){
+    nextBtn.textContent = isLast ? 'はじめる 🚀' : '次へ';
+    nextBtn.style.background = isLast ? 'linear-gradient(135deg,var(--p),var(--pink))' : 'var(--p)';
+  }
+  // スキップ非表示（最後のスライドで）
+  const skipBtn=document.getElementById('tut-skip');
+  if(skipBtn){
+    skipBtn.style.opacity = isLast ? '0' : '1';
+    skipBtn.style.pointerEvents = isLast ? 'none' : 'auto';
+  }
+
+  // スライド内容
+  const slides = document.getElementById('tut-slides');
+  const noteHtml = s.note ? `
+    <div style="background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);
+      border-radius:10px;padding:12px 14px;font-size:12px;color:var(--amber);line-height:1.7;
+      margin-top:4px;">
+      📱 ${s.note}
+    </div>` : '';
+
+  const ctaHtml = s.cta ? `
+    <a href="https://www.threads.net/@kou_logo5" target="_blank"
+      style="display:flex;align-items:center;justify-content:center;gap:8px;
+        background:rgba(123,110,246,.15);border:1px solid rgba(123,110,246,.3);
+        border-radius:12px;padding:13px;color:var(--p2);font-size:14px;font-weight:700;
+        text-decoration:none;margin-top:4px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m0 4v.01"/></svg>
+      @kou_logo5 をフォロー
+    </a>` : '';
+
+  // アニメーション用wrapper
+  slides.innerHTML = `
+    <div id="tut-slide-inner" style="
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:60px 28px 120px;gap:0;
+      opacity:0;transform:translateY(16px);
+      transition:opacity .35s ease,transform .35s ease;
+    ">
+      <div style="width:80px;height:80px;border-radius:24px;
+        background:${s.color}20;border:1px solid ${s.color}44;
+        display:flex;align-items:center;justify-content:center;
+        font-size:36px;margin-bottom:24px;">${s.emoji}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--p2);
+        margin-bottom:14px;">${s.tag}</div>
+      <div style="font-size:26px;font-weight:700;letter-spacing:-.5px;text-align:center;
+        line-height:1.3;margin-bottom:20px;white-space:pre-line;">${s.title}</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.85;text-align:center;
+        white-space:pre-line;margin-bottom:16px;">${s.body}</div>
+      ${noteHtml}
+      ${ctaHtml}
+    </div>`;
+
+  requestAnimationFrame(()=>{
+    const inner = document.getElementById('tut-slide-inner');
+    if(inner){ inner.style.opacity='1'; inner.style.transform='translateY(0)'; }
+  });
+}
+
+function nextSlide(){
+  if(_tutIdx < SLIDES.length - 1){
+    _tutIdx++;
+    renderTutSlide();
+  } else {
+    finishTutorial();
+  }
+}
+
+function skipTutorial(){
+  finishTutorial();
+}
+
+function finishTutorial(){
+  localStorage.setItem(TUT_KEY,'1');
+  const el = document.getElementById('tutorial');
+  el.style.transition = 'opacity .4s ease';
+  el.style.opacity = '0';
+  setTimeout(()=>{ el.style.display='none'; },400);
+}
+
 // SPLASH
 (function(){
   function go(){
@@ -1001,32 +1667,186 @@ if(S.types.length===0){
     const sub=document.getElementById('spl-sub');
     const glow=document.getElementById('spl-glow');
     const sp=document.getElementById('splash');
+    // 要素が見つからない場合はスキップして即起動
+    if(!sp){ renderHome(); return; }
     // フェーズ1: グロー展開
     requestAnimationFrame(()=>{
-      glow.style.opacity='1';
-      glow.style.transform='scale(1)';
+      if(glow){ glow.style.opacity='1'; glow.style.transform='scale(1)'; }
     });
-    // フェーズ2: ロゴ浮き出し（少し遅延）
+    // フェーズ2: ロゴ浮き出し
     setTimeout(()=>{
-      logo.style.opacity='1';
-      logo.style.transform='scale(1) translateY(0)';
-      logo.style.boxShadow='0 8px 40px rgba(123,110,246,.4)';
+      if(logo){
+        logo.style.opacity='1';
+        logo.style.transform='scale(1) translateY(0)';
+        logo.style.boxShadow='0 8px 40px rgba(123,110,246,.4)';
+      }
     },120);
     // フェーズ3: テキスト
     setTimeout(()=>{
-      name.style.opacity='1';name.style.transform='translateY(0)';
-      sub.style.opacity='1';
+      if(name){ name.style.opacity='1'; name.style.transform='translateY(0)'; }
+      if(sub){ sub.style.opacity='1'; }
     },280);
     // フェードアウト
     setTimeout(()=>{
       sp.style.transition='opacity .45s ease';
       sp.style.opacity='0';
-      setTimeout(()=>{sp.style.display='none';renderHome();},450);
+      setTimeout(()=>{
+        sp.style.display='none';
+        renderHome();
+        // 初回のみチュートリアル表示
+        if(!localStorage.getItem(TUT_KEY)){
+          setTimeout(()=>showTutorial(), 300);
+        }
+      },450);
     },1800);
   }
-  if(document.fonts?.ready) document.fonts.ready.then(go);
-  else window.addEventListener('load',go);
+  // DOMContentLoaded後に実行を保証
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>{
+      if(document.fonts?.ready) document.fonts.ready.then(go);
+      else go();
+    });
+  } else {
+    if(document.fonts?.ready) document.fonts.ready.then(go);
+    else go();
+  }
 })();
 </script>
+<!-- ═══ AUTO FILL SHEET ═══ -->
+<div class="ov" id="ov-autofill">
+  <div class="sheet" style="max-height:90vh;">
+    <div class="handle"></div>
+    <div class="sh-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      型を自動配置
+    </div>
+    <div class="sh-body" style="gap:18px;">
+
+      <!-- STEP 1: 曜日選択 -->
+      <div>
+        <div class="fl" style="margin-bottom:10px;">① 投稿する曜日を選ぶ</div>
+        <div style="display:flex;gap:5px;" id="af-dow-grid"></div>
+      </div>
+
+      <!-- STEP 2: 1日の投稿数 -->
+      <div>
+        <div class="fl" style="margin-bottom:10px;">② 1日の投稿数</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="af-count-grid"></div>
+      </div>
+
+      <!-- 合計スロット数の表示 -->
+      <div id="af-total-info" style="background:rgba(123,110,246,.08);border:1px solid rgba(123,110,246,.2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text2);line-height:1.8;display:none;">
+      </div>
+
+      <!-- STEP 3: プレビュー -->
+      <div id="af-preview" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;letter-spacing:.5px;">PREVIEW — WEEK 1〜4</div>
+        <div id="af-preview-body" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
+      <!-- 注意 -->
+      <div style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
+        ⚠️ 実行するとWEEK1〜4の既存スケジュールはリセットされます。
+      </div>
+
+    </div>
+    <div class="sh-foot" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-full" onclick="previewAutoFill()"
+        style="background:rgba(255,183,77,.15);color:var(--amber);border:1px solid rgba(255,183,77,.3);justify-content:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        ③ プレビューを確認
+      </button>
+      <div style="display:flex;gap:8px;width:100%;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="closeOv('ov-autofill')">キャンセル</button>
+        <button class="btn btn-pri" style="flex:2;justify-content:center;gap:6px;" id="af-exec-btn" onclick="execAutoFill()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          ④ 自動配置を実行
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BACKUP SHEET ═══ -->
+<div class="ov" id="ov-backup">
+  <div class="sheet" style="max-height:80vh;">
+    <div class="handle"></div>
+    <div class="sh-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+      バックアップ・インポート
+    </div>
+    <div class="sh-body" style="gap:16px;">
+
+      <!-- エクスポート -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+          <span style="color:var(--teal);">エクスポート（バックアップ）</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;">
+          登録した型をJSONファイルとして書き出します。スマホのダウンロードフォルダに保存されます。
+        </div>
+        <button class="btn btn-full" onclick="exportTypes()"
+          style="background:rgba(77,208,196,.12);color:var(--teal);border:1px solid rgba(77,208,196,.25);justify-content:center;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+          JSONでダウンロード（<span id="export-count">0</span>件）
+        </button>
+      </div>
+
+      <!-- インポート -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round"><polyline points="16 7 12 3 8 7"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+          <span style="color:var(--p2);">インポート（復元）</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;">
+          以前にエクスポートしたJSONファイルを読み込みます。
+        </div>
+        <div style="display:flex;gap:8px;flex-direction:column;">
+          <div style="display:flex;gap:6px;">
+            <label style="flex:1;">
+              <div class="btn btn-full" style="background:rgba(123,110,246,.12);color:var(--p2);border:1px solid rgba(123,110,246,.25);justify-content:center;gap:8px;cursor:pointer;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 7 12 3 8 7"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
+                JSONファイルを選択
+              </div>
+              <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importTypes(event)">
+            </label>
+          </div>
+          <div id="import-preview" style="display:none;background:var(--card2);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);line-height:1.7;"></div>
+          <button id="import-confirm-btn" class="btn btn-full btn-pri" onclick="confirmImport()" style="display:none;justify-content:center;">
+            インポートを確定する
+          </button>
+        </div>
+      </div>
+
+      <!-- 注意 -->
+      <div style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
+        ⚠️ インポートを確定すると既存の型に追加されます（上書きではありません）。同じ型が重複する場合はご注意ください。
+      </div>
+
+    </div>
+    <div class="sh-foot">
+      <button class="btn btn-ghost btn-full" onclick="closeOv('ov-backup')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TUTORIAL (初回のみ) ═══ -->
+<div id="tutorial" style="display:none;position:fixed;inset:0;z-index:8000;background:#0d0d14;">
+  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.07);">
+    <div id="tut-bar" style="height:100%;background:linear-gradient(90deg,#7b6ef6,#f06292);border-radius:2px;transition:width .4s ease;width:0%;"></div>
+  </div>
+  <div id="tut-slides" style="height:100%;display:flex;flex-direction:column;overflow:hidden;"></div>
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 24px calc(20px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(transparent,#0d0d14 60%);">
+    <button id="tut-skip" onclick="skipTutorial()"
+      style="background:none;border:none;color:#44445a;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:8px;">スキップ</button>
+    <div style="display:flex;gap:6px;align-items:center;" id="tut-dots"></div>
+    <button id="tut-next" onclick="nextSlide()"
+      style="background:#7b6ef6;border:none;color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;padding:11px 24px;border-radius:12px;transition:all .15s;min-width:90px;">次へ</button>
+  </div>
+</div>
+
 </body>
 </html>
