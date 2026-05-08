@@ -741,13 +741,14 @@ function openPostOvFuture(typeId){
   const type = S.types.find(t=>t.id===typeId);
   if(!type) return;
   const slots = type.slots||[{text:'',note:''}];
-  document.getElementById('post-ov-title').textContent = type.name + '（参照）';
+  document.getElementById('post-ov-title').textContent = type.name;
   const tabs = slots.map((s,i)=>`<div class="ttab ${i===0?'on':''}" onclick="switchPostTreeFuture(${i},'${typeId}')">${i+1}/${slots.length}</div>`).join('');
   const cur = slots[0]||{};
   document.getElementById('post-ov-body').innerHTML=`
     <div class="tree-tab-row" style="margin:0;">${tabs}</div>
     <div style="background:var(--card2);border-radius:12px;padding:14px;">
-      <div id="future-text" style="font-size:14px;line-height:1.85;color:var(--text);white-space:pre-wrap;">${esc(cur.text||'（テキストなし）')}</div>
+      <textarea id="post-ta" class="fi" style="background:transparent;border:none;padding:0;min-height:140px;font-size:14px;"
+        >${esc(cur.text||'')}</textarea>
     </div>
     ${cur.note?`<div style="background:rgba(123,110,246,.08);border:1px solid rgba(123,110,246,.2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);">📎 ${esc(cur.note)}</div>`:''}
   `;
@@ -758,9 +759,8 @@ function switchPostTreeFuture(i, typeId){
   const type = S.types.find(t=>t.id===typeId);
   if(!type) return;
   const cur = type.slots?.[i]||{};
-  const el = document.getElementById('future-text');
-  if(el) el.textContent = cur.text||'（テキストなし）';
-  // タブ更新
+  const ta = document.getElementById('post-ta');
+  if(ta) ta.value = cur.text||'';
   document.querySelectorAll('#post-ov-body .ttab').forEach((t,ti)=>{
     t.classList.toggle('on', ti===i);
   });
@@ -821,10 +821,19 @@ function quickToggleDone(pk){
   S.done[pk]=!S.done[pk];save();renderHome();
 }
 function copyPost(){
-  const ta=document.getElementById('post-ta');
-  const txt=ta?.value||'';
-  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('📋 コピーしました'));}
-  else{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('📋 コピーしました');}
+  // 通常投稿はtextarea、翌日以降プレビューはfuture-text divから取得
+  const ta = document.getElementById('post-ta');
+  const div = document.getElementById('future-text');
+  const txt = ta ? ta.value : (div ? div.textContent : '');
+  if(!txt){ toast('コピーするテキストがありません'); return; }
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>toast('📋 コピーしました'));
+  } else {
+    const t=document.createElement('textarea');
+    t.value=txt;document.body.appendChild(t);t.select();
+    document.execCommand('copy');document.body.removeChild(t);
+    toast('📋 コピーしました');
+  }
   closeOv('ov-post');
 }
 
@@ -1158,6 +1167,8 @@ let _afDows = new Set(['mon','tue','wed','thu','fri']);
 let _afDayCount = 1;   // 1日の投稿数
 let _afResult = null;
 
+let _afMode = 'add'; // 'add' | 'full'
+
 function openAutoFillSheet(){
   if(!S.types.length){
     toast('先に「型」タブで型を登録してください');
@@ -1166,11 +1177,63 @@ function openAutoFillSheet(){
   _afDows = new Set(['mon','tue','wed','thu','fri']);
   _afDayCount = 1;
   _afResult = null;
+  // 未使用の型があればaddモード、なければfullモード
+  const unused = getUnusedTypes();
+  _afMode = unused.length > 0 ? 'add' : 'full';
   renderAfDowGrid();
   renderAfCountGrid();
   updateAfTotalInfo();
+  renderAfMode();
   document.getElementById('af-preview').style.display = 'none';
   openOv('ov-autofill');
+}
+
+function getUnusedTypes(){
+  // スケジュールに1回も登場していない型を返す
+  const usedIds = new Set();
+  [1,2,3,4].forEach(w => {
+    DOW.forEach(dk => {
+      (S.schedule[w]?.[dk] || []).forEach(sl => usedIds.add(sl.typeId));
+    });
+  });
+  return S.types.filter(t => !usedIds.has(t.id));
+}
+
+function setAfMode(mode){
+  _afMode = mode;
+  renderAfMode();
+  updateAfTotalInfo();
+  resetAfPreview();
+}
+
+function renderAfMode(){
+  const addEl  = document.getElementById('af-mode-add');
+  const fullEl = document.getElementById('af-mode-full');
+  const noteEl = document.getElementById('af-note');
+  if(!addEl || !fullEl) return;
+  const isAdd = _afMode === 'add';
+  addEl.style.borderColor  = isAdd  ? 'var(--p)'      : 'var(--border)';
+  addEl.style.background   = isAdd  ? 'rgba(123,110,246,.15)' : 'var(--card2)';
+  addEl.querySelector('div').style.color = isAdd  ? 'var(--p2)' : 'var(--text2)';
+  fullEl.style.borderColor = !isAdd ? 'var(--amber)'  : 'var(--border)';
+  fullEl.style.background  = !isAdd ? 'rgba(255,183,77,.12)' : 'var(--card2)';
+  fullEl.querySelector('div').style.color = !isAdd ? 'var(--amber)' : 'var(--text2)';
+  if(noteEl){
+    if(isAdd){
+      const unused = getUnusedTypes();
+      noteEl.style.background = 'rgba(77,208,196,.06)';
+      noteEl.style.borderColor = 'rgba(77,208,196,.25)';
+      noteEl.style.color = 'var(--teal)';
+      noteEl.textContent = unused.length > 0
+        ? `✅ 既存スケジュールはそのまま。未使用の型 ${unused.length}件（${unused.map(t=>t.name).join('・')}）を追加します。`
+        : '⚠️ 未使用の型がありません。全体を再配置モードに切り替えてください。';
+    } else {
+      noteEl.style.background = 'rgba(255,183,77,.06)';
+      noteEl.style.borderColor = 'rgba(255,183,77,.2)';
+      noteEl.style.color = 'var(--amber)';
+      noteEl.textContent = '⚠️ 実行するとWEEK1〜4の既存スケジュールはリセットされます。';
+    }
+  }
 }
 
 function renderAfDowGrid(){
@@ -1233,18 +1296,37 @@ function updateAfTotalInfo(){
   const info = document.getElementById('af-total-info');
   if(!info) return;
   const dowCount = _afDows.size;
-  const totalSlots = 4 * dowCount * _afDayCount; // 4週 × 曜日数 × 1日投稿数
-  const typeCount = S.types.length;
+  const totalSlots = 4 * dowCount * _afDayCount;
   info.style.display = 'block';
-  info.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-weight:700;color:var(--text);">合計スロット数</span>
-      <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--p2);">${totalSlots}件</span>
-    </div>
-    <div style="font-size:12px;line-height:1.8;">
-      4週 × 週${dowCount}日 × ${_afDayCount}投稿 = ${totalSlots}スロット<br>
-      登録型${typeCount}件 → ${typeCount >= totalSlots ? '全型が収まります' : `${Math.ceil(totalSlots/typeCount)}周して配置`}
-    </div>`;
+  if(_afMode === 'add'){
+    const unused = getUnusedTypes();
+    const addCount = unused.length;
+    if(addCount === 0){
+      info.innerHTML = `<div style="font-weight:700;color:var(--text);margin-bottom:4px;">未使用の型: 0件</div>
+        <div style="font-size:12px;line-height:1.8;">すべての型がすでにスケジュールに含まれています。<br>「全体を再配置」モードで振り直すか、新しい型を登録してください。</div>`;
+    } else {
+      info.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:700;color:var(--text);">追加する型</span>
+          <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--teal);">${addCount}件</span>
+        </div>
+        <div style="font-size:12px;line-height:1.8;">
+          ${unused.map(t=>`<span style="color:${t.color};font-weight:600;">${esc(t.name)}</span>`).join(' · ')}<br>
+          4週 × 週${dowCount}日 × ${_afDayCount}投稿 = 追加${totalSlots}スロットに振り分け
+        </div>`;
+    }
+  } else {
+    const typeCount = S.types.length;
+    info.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-weight:700;color:var(--text);">合計スロット数</span>
+        <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--p2);">${totalSlots}件</span>
+      </div>
+      <div style="font-size:12px;line-height:1.8;">
+        4週 × 週${dowCount}日 × ${_afDayCount}投稿 = ${totalSlots}スロット<br>
+        登録型${typeCount}件 → ${typeCount >= totalSlots ? '全型が収まります' : `${Math.ceil(totalSlots/typeCount)}周して配置`}
+      </div>`;
+  }
 }
 
 function resetAfPreview(){
@@ -1253,58 +1335,109 @@ function resetAfPreview(){
 }
 
 // ── コアアルゴリズム ──
+// 未使用の型だけを均等に追加するスケジュール生成
+function buildAddOnlySchedule(unusedTypes){
+  const typeIds = unusedTypes.map(t => t.id);
+  const dows = DOW.filter(dk => _afDows.has(dk));
+  const weeks = [1,2,3,4];
+  const totalSlots = weeks.length * dows.length * _afDayCount;
+
+  function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+  function buildPool(ids, count){
+    const n=ids.length, base=Math.floor(count/n), extra=count%n;
+    const shuffled=shuffle([...ids]); const pool=[];
+    shuffled.forEach((id,i)=>{ const cnt=base+(i<extra?1:0); for(let j=0;j<cnt;j++) pool.push(id); });
+    return pool;
+  }
+  function deconflict(arr){
+    if(arr.length<=1) return arr;
+    const freq={}; arr.forEach(id=>{freq[id]=(freq[id]||0)+1;});
+    const maxFreq=Math.max(...Object.values(freq));
+    if(maxFreq>Math.ceil(arr.length/2)) return shuffle(arr);
+    const buckets=Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([id,cnt])=>Array(cnt).fill(id));
+    const result=[]; let safety=arr.length*4;
+    while(result.length<arr.length&&safety-->0){
+      let placed=false;
+      for(let b=0;b<buckets.length;b++){
+        if(!buckets[b].length) continue;
+        if(buckets[b][0]!==result[result.length-1]){ result.push(buckets[b].shift()); placed=true; break; }
+      }
+      if(!placed){ for(let b=0;b<buckets.length;b++){if(buckets[b].length){result.push(buckets[b].shift());break;}} }
+    }
+    return result;
+  }
+
+  let pool = buildPool(typeIds, totalSlots);
+  pool = deconflict(pool);
+
+  const schedule = {};
+  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
+  let idx = 0;
+  for(let di = 0; di < _afDayCount; di++){
+    weeks.forEach(w => {
+      dows.forEach(dk => {
+        if(idx < pool.length){ schedule[w][dk].push({ typeId: pool[idx], time: '' }); idx++; }
+      });
+    });
+  }
+  return schedule;
+}
+
 function buildAutoFillSchedule(){
   const typeIds = S.types.map(t => t.id);
   const dows = DOW.filter(dk => _afDows.has(dk));
   const weeks = [1,2,3,4];
   const totalSlots = weeks.length * dows.length * _afDayCount;
 
-  // 型を均等に繰り返してtotalSlots分生成
-  function buildPool(ids, count){
-    const result = [];
-    for(let i = 0; i < count; i++){
-      result.push(ids[i % ids.length]);
-    }
-    return result;
-  }
-
   // Fisher-Yatesシャッフル
   function shuffle(arr){
     const a = [...arr];
     for(let i = a.length-1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i+1));
+      const j = Math.floor(Math.random()*(i+1));
       [a[i],a[j]] = [a[j],a[i]];
     }
     return a;
   }
 
-  // 同じ型が連続しないよう並び替え（インターリーブ）
+  // 均等配置プール生成（各型の出現回数が最大1差に収まる）
+  function buildPool(ids, count){
+    const n = ids.length;
+    const base = Math.floor(count / n);
+    const extra = count % n;
+    const shuffled = shuffle([...ids]);
+    const pool = [];
+    shuffled.forEach((id, i) => {
+      const cnt = base + (i < extra ? 1 : 0);
+      for(let j = 0; j < cnt; j++) pool.push(id);
+    });
+    return pool; // ちょうどcount件
+  }
+
+  // 同じ型が連続しないよう並び替え
   function deconflict(arr){
     if(arr.length <= 1) return arr;
     const freq = {};
     arr.forEach(id => { freq[id] = (freq[id]||0)+1; });
     const maxFreq = Math.max(...Object.values(freq));
-    // 分散不可能なら素直にシャッフル
     if(maxFreq > Math.ceil(arr.length / 2)) return shuffle(arr);
-
-    // バケツに分けてインターリーブ
     const buckets = Object.entries(freq)
       .sort((a,b) => b[1]-a[1])
       .map(([id, cnt]) => Array(cnt).fill(id));
     const result = [];
-    let safety = arr.length * 3;
+    let safety = arr.length * 4;
     while(result.length < arr.length && safety-- > 0){
+      let placed = false;
       for(let b = 0; b < buckets.length; b++){
         if(!buckets[b].length) continue;
         const last = result[result.length-1];
         if(buckets[b][0] !== last){
           result.push(buckets[b].shift());
-          break;
+          placed = true; break;
         }
-        // 次のバケツに回す
-        if(b === buckets.length-1){
-          // 全バケツが同じIDなら強制追加
-          result.push(buckets[0].shift());
+      }
+      if(!placed){
+        for(let b = 0; b < buckets.length; b++){
+          if(buckets[b].length){ result.push(buckets[b].shift()); break; }
         }
       }
     }
@@ -1312,7 +1445,7 @@ function buildAutoFillSchedule(){
   }
 
   // poolを作って分散
-  let pool = buildPool(shuffle(typeIds), totalSlots);
+  let pool = buildPool(typeIds, totalSlots);
   pool = deconflict(pool);
 
   // week×dow×dayCountのグリッドに割り当て
@@ -1341,7 +1474,13 @@ function buildAutoFillSchedule(){
 
 function previewAutoFill(){
   if(!_afDows.size){ toast('曜日を選択してください'); return; }
-  _afResult = buildAutoFillSchedule();
+  if(_afMode === 'add'){
+    const unused = getUnusedTypes();
+    if(!unused.length){ toast('未使用の型がありません。全体を再配置モードを使ってください。'); return; }
+    _afResult = buildAddOnlySchedule(unused);
+  } else {
+    _afResult = buildAutoFillSchedule();
+  }
 
   const preview = document.getElementById('af-preview');
   const body = document.getElementById('af-preview-body');
@@ -1388,12 +1527,25 @@ function execAutoFill(){
 
 function _doExec(){
   if(!_afResult) return;
-  [1,2,3,4].forEach(w => { S.schedule[w] = _afResult[w]; });
-  save();
-  closeOv('ov-autofill');
-  renderSchedule();
-  const total = 4 * _afDows.size * _afDayCount;
-  toast(`⚡ ${total}スロットを自動配置しました！`);
+  if(_afMode === 'add'){
+    // 既存スロットの後ろに追加するマージ
+    [1,2,3,4].forEach(w => {
+      DOW.forEach(dk => {
+        const existing = S.schedule[w]?.[dk] || [];
+        const adding   = _afResult[w]?.[dk]  || [];
+        if(!S.schedule[w]) S.schedule[w] = {};
+        S.schedule[w][dk] = [...existing, ...adding];
+      });
+    });
+    const addedTotal = Object.values(_afResult).flatMap(w => Object.values(w)).flat().length;
+    save(); closeOv('ov-autofill'); renderSchedule();
+    toast(`✅ ${addedTotal}スロットを追加しました！`);
+  } else {
+    [1,2,3,4].forEach(w => { S.schedule[w] = _afResult[w]; });
+    const total = 4 * _afDows.size * _afDayCount;
+    save(); closeOv('ov-autofill'); renderSchedule();
+    toast(`⚡ ${total}スロットを自動配置しました！`);
+  }
   _afResult = null;
 }
 
@@ -1744,9 +1896,30 @@ function finishTutorial(){
         <div id="af-preview-body" style="display:flex;flex-direction:column;gap:10px;"></div>
       </div>
 
+      <!-- モード切替 -->
+      <div>
+        <div class="fl" style="margin-bottom:10px;">配置モード</div>
+        <div style="display:flex;gap:6px;">
+          <div id="af-mode-add" onclick="setAfMode('add')" style="
+            flex:1;padding:11px 8px;border-radius:10px;text-align:center;cursor:pointer;
+            border:1px solid var(--p);background:rgba(123,110,246,.15);
+            transition:all .15s;">
+            <div style="font-size:13px;font-weight:700;color:var(--p2);">追加のみ</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;">既存を崩さず<br>未使用の型を追加</div>
+          </div>
+          <div id="af-mode-full" onclick="setAfMode('full')" style="
+            flex:1;padding:11px 8px;border-radius:10px;text-align:center;cursor:pointer;
+            border:1px solid var(--border);background:var(--card2);
+            transition:all .15s;">
+            <div style="font-size:13px;font-weight:700;color:var(--text2);">全体を再配置</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:3px;">全スロットを<br>リセットして振り直す</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 注意 -->
-      <div style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
-        ⚠️ 実行するとWEEK1〜4の既存スケジュールはリセットされます。
+      <div id="af-note" style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
+        ✅ 既存のスケジュールはそのまま。まだ1回も使われていない型だけを追加します。
       </div>
 
     </div>
