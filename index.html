@@ -607,13 +607,12 @@ function renderHome(){
   const wn=getWeekNum(),dk=getTodayDow(),td=today();
   const slots=(S.schedule[wn]?.[dk])||[];
   const d=new Date(td+'T00:00:00');
-  const DN=['日','月','火','水','木','金','土'];
   const done=slots.filter((_,i)=>S.done[`${td}-${wn}-${dk}-${i}`]).length;
   document.getElementById('home-sub').textContent=`WEEK${wn} · ${DOWJP[dk]}曜日 · ${slots.length}件`;
   document.getElementById('home-hero').innerHTML=`
     <div class="hero">
       <div>
-        <div class="hero-date">WEEK ${wn} · ${DN[d.getDay()]}曜日</div>
+        <div class="hero-date">WEEK ${wn} · ${DOWJP[dk]}曜日</div>
         <div class="hero-label">${d.getMonth()+1}月${d.getDate()}日</div>
       </div>
       <div class="hero-count">
@@ -1444,30 +1443,53 @@ function buildAutoFillSchedule(){
     return result;
   }
 
-  // poolを作って分散
-  let pool = buildPool(typeIds, totalSlots);
-  pool = deconflict(pool);
+  // ── 配置アルゴリズム（最終版） ──
+  // 日付順（WEEK1月→WEEK1火→...→WEEK4日）にスロットを並べて
+  // 「直前の型を避けながら」均等に割り当てる
 
-  // week×dow×dayCountのグリッドに割り当て
   const schedule = {};
+  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
+
+  // スロットを日付順に生成
+  const slotOrder = [];
   weeks.forEach(w => {
-    schedule[w] = {};
-    DOW.forEach(dk => schedule[w][dk] = []);
+    dows.forEach(dk => {
+      for(let di = 0; di < _afDayCount; di++){
+        slotOrder.push({ w, dk });
+      }
+    });
   });
 
-  let idx = 0;
-  // week→dow→dayCount の順で埋める（週をまたいで均等に）
-  for(let di = 0; di < _afDayCount; di++){
-    weeks.forEach(w => {
-      dows.forEach(dk => {
-        if(idx < pool.length){
-          if(!schedule[w][dk]) schedule[w][dk] = [];
-          schedule[w][dk].push({ typeId: pool[idx], time: '' });
-          idx++;
-        }
-      });
-    });
-  }
+  // 出現回数ベースのバケツ
+  const poolBase = buildPool(typeIds, totalSlots);
+  const freq = {};
+  poolBase.forEach(id => { freq[id] = (freq[id] || 0) + 1; });
+  let buckets = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, cnt]) => Array(cnt).fill(id));
+
+  // 直前を避けながら順番に割り当て
+  let lastTypeId = null;
+  slotOrder.forEach(({ w, dk }) => {
+    buckets.sort((a, b) => b.length - a.length); // 残数が多い順
+    let chosen = null;
+    for(let b = 0; b < buckets.length; b++){
+      if(!buckets[b].length) continue;
+      if(buckets[b][0] !== lastTypeId){
+        chosen = buckets[b].shift();
+        break;
+      }
+    }
+    if(!chosen){
+      for(let b = 0; b < buckets.length; b++){
+        if(buckets[b].length){ chosen = buckets[b].shift(); break; }
+      }
+    }
+    if(chosen){
+      schedule[w][dk].push({ typeId: chosen, time: '' });
+      lastTypeId = chosen;
+    }
+  });
 
   return schedule;
 }
