@@ -1451,16 +1451,7 @@ function buildAutoFillSchedule(){
   weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
 
   // スロットを日付順に生成
-  const slotOrder = [];
-  weeks.forEach(w => {
-    dows.forEach(dk => {
-      for(let di = 0; di < _afDayCount; di++){
-        slotOrder.push({ w, dk });
-      }
-    });
-  });
-
-  // 出現回数ベースのバケツ
+  // 均等プール生成
   const poolBase = buildPool(typeIds, totalSlots);
   const freq = {};
   poolBase.forEach(id => { freq[id] = (freq[id] || 0) + 1; });
@@ -1468,28 +1459,43 @@ function buildAutoFillSchedule(){
     .sort((a, b) => b[1] - a[1])
     .map(([id, cnt]) => Array(cnt).fill(id));
 
-  // 直前を避けながら順番に割り当て
-  let lastTypeId = null;
-  slotOrder.forEach(({ w, dk }) => {
-    buckets.sort((a, b) => b.length - a.length); // 残数が多い順
-    let chosen = null;
-    for(let b = 0; b < buckets.length; b++){
-      if(!buckets[b].length) continue;
-      if(buckets[b][0] !== lastTypeId){
-        chosen = buckets[b].shift();
-        break;
-      }
-    }
-    if(!chosen){
-      for(let b = 0; b < buckets.length; b++){
-        if(buckets[b].length){ chosen = buckets[b].shift(); break; }
-      }
-    }
-    if(chosen){
-      schedule[w][dk].push({ typeId: chosen, time: '' });
-      lastTypeId = chosen;
-    }
-  });
+  // 1投稿目を全週全曜日 → 2投稿目を全週全曜日 → ... の順で割り当て
+  // 同じ曜日×週に同じ型が入らないよう alreadyInSlot で管理
+  let lastGlobal = null;
+  for(let di = 0; di < _afDayCount; di++){
+    weeks.forEach(w => {
+      dows.forEach(dk => {
+        // 避ける型: 直前の型 + この曜日×週にすでに入っている型
+        const alreadyInSlot = new Set((schedule[w][dk] || []).map(s => s.typeId));
+        const avoid = new Set([lastGlobal, ...alreadyInSlot].filter(Boolean));
+
+        buckets.sort((a, b) => b.length - a.length);
+        let chosen = null;
+        // 第1優先: 直前も同日も避ける
+        for(let b = 0; b < buckets.length; b++){
+          if(!buckets[b].length) continue;
+          if(!avoid.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
+        }
+        // 第2優先: 同日重複だけは絶対避ける（直前連続は許容）
+        if(!chosen){
+          for(let b = 0; b < buckets.length; b++){
+            if(!buckets[b].length) continue;
+            if(!alreadyInSlot.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
+          }
+        }
+        // やむなし
+        if(!chosen){
+          for(let b = 0; b < buckets.length; b++){
+            if(buckets[b].length){ chosen = buckets[b].shift(); break; }
+          }
+        }
+        if(chosen){
+          schedule[w][dk].push({ typeId: chosen, time: '' });
+          lastGlobal = chosen;
+        }
+      });
+    });
+  }
 
   return schedule;
 }
