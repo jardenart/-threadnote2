@@ -1149,21 +1149,7 @@ if(!S.done) S.done={};
 if(!S.selWeek) S.selWeek=1;
 if(!S.cycleStart) S.cycleStart=today();
 
-// デモデータ（初回のみ）
-if(S.types.length===0){
-  S.types=[
-    {id:'t1',name:'共感系',color:'#7b6ef6',memo:'月・金向け。体験談を入れる',
-     slots:[
-       {text:'✅ 気づき\n\nこれって〇〇な方あるあるじゃないですか？\n\n実は私も〜\n\n→ だから今日は〇〇をシェアします！',note:'「あるある」から入る'},
-       {text:'続き：具体的な体験談\n\n〇〇したら△△が変わりました。\n\n一番効いたのは□□でした。',note:'具体的な数字を入れる'}
-     ]},
-    {id:'t2',name:'ノウハウ系',color:'#4dd0c4',memo:'火・木向け',
-     slots:[{text:'💡 〇〇で悩んでいる方へ\n\n✅ ポイント①\n✅ ポイント②\n✅ ポイント③\n\nこれだけで変わります。',note:'リスト形式'}]},
-    {id:'t3',name:'CTA系',color:'#ffb74d',memo:'週末向け',
-     slots:[{text:'🎁 noteに〇〇を書きました！\n\n・〇〇がわかる\n・〇〇できるようになる\n\nプロフのリンクからどうぞ👇',note:'数字を入れる'}]},
-  ];
-  save();
-}
+// 型ライブラリは初期状態で空
 
 
 
