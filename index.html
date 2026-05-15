@@ -607,7 +607,7 @@ function renderHome(){
   const wn=getWeekNum(),dk=getTodayDow(),td=today();
   const slots=(S.schedule[wn]?.[dk])||[];
   const d=new Date(td+'T00:00:00');
-  const done=slots.filter((_,i)=>S.done[`${td}-${wn}-${dk}-${i}`]).length;
+  const done=slots.filter((_,i)=>S.done[`${wn}-${dk}-${i}`]).length;
   document.getElementById('home-sub').textContent=`WEEK${wn} · ${DOWJP[dk]}曜日 · ${slots.length}件`;
   document.getElementById('home-hero').innerHTML=`
     <div class="hero">
@@ -633,7 +633,7 @@ function renderHome(){
   list.innerHTML=slots.map((sl,i)=>{
     const type=S.types.find(t=>t.id===sl.typeId);
     if(!type)return'';
-    const pk=`${td}-${wn}-${dk}-${i}`;
+    const pk=`${wn}-${dk}-${i}`;
     const isDone=S.done[pk];
     const n=type.slots?.length||1;
     const treeTag = n > 1 ? `${n}ツリー` : '';
@@ -766,8 +766,8 @@ function switchPostTreeFuture(i, typeId){
 }
 
 function resetTodayDone(){
-  const td=today(),wn=getWeekNum(),dk=getTodayDow();
-  const pfx=`${td}-${wn}-${dk}-`;
+  const wn=getWeekNum(),dk=getTodayDow();
+  const pfx=`${wn}-${dk}-`;
   Object.keys(S.done).forEach(k=>{if(k.startsWith(pfx))delete S.done[k];});
   save();renderHome();toast('今日の完了をリセットしました');
 }
@@ -1130,6 +1130,15 @@ if('serviceWorker' in navigator && location.hostname.endsWith('github.io')){
 // INIT
 // ════════════════════════════════════════
 load();
+// 週が変わっていたらdoneをリセット
+(function(){
+  const currentWn = getWeekNum();
+  if(S._lastWeekNum !== undefined && S._lastWeekNum !== currentWn){
+    S.done = {};
+  }
+  S._lastWeekNum = currentWn;
+  save();
+})();
 if(!S.schedule||!S.schedule[1]){
   S.schedule={1:{},2:{},3:{},4:{}};
   DOW.forEach(dk=>{[1,2,3,4].forEach(w=>S.schedule[w][dk]=S.schedule[w][dk]||[]);});
@@ -1217,6 +1226,10 @@ function renderAfMode(){
   fullEl.style.borderColor = !isAdd ? 'var(--amber)'  : 'var(--border)';
   fullEl.style.background  = !isAdd ? 'rgba(255,183,77,.12)' : 'var(--card2)';
   fullEl.querySelector('div').style.color = !isAdd ? 'var(--amber)' : 'var(--text2)';
+  // 1日の投稿数は「全体を再配置」モードのみ表示
+  const countSection = document.getElementById('af-count-section');
+  if(countSection) countSection.style.display = isAdd ? 'none' : 'block';
+
   if(noteEl){
     if(isAdd){
       const unused = getUnusedTypes();
@@ -1334,48 +1347,82 @@ function resetAfPreview(){
 }
 
 // ── コアアルゴリズム ──
+// ── 配置共通ユーティリティ（グローバル） ──
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function buildPool(ids, count){
+  const n=ids.length, base=Math.floor(count/n), extra=count%n;
+  const shuffled=shuffle([...ids]); const pool=[];
+  shuffled.forEach((id,i)=>{ const cnt=base+(i<extra?1:0); for(let j=0;j<cnt;j++) pool.push(id); });
+  return pool;
+}
+function deconflict(arr){
+  if(arr.length<=1) return arr;
+  const freq={};arr.forEach(id=>{freq[id]=(freq[id]||0)+1;});
+  const maxFreq=Math.max(...Object.values(freq));
+  if(maxFreq>Math.ceil(arr.length/2)) return shuffle(arr);
+  const buckets=Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([id,cnt])=>Array(cnt).fill(id));
+  const result=[]; let safety=arr.length*4;
+  while(result.length<arr.length&&safety-->0){
+    let placed=false;
+    for(let b=0;b<buckets.length;b++){
+      if(!buckets[b].length) continue;
+      if(buckets[b][0]!==result[result.length-1]){result.push(buckets[b].shift());placed=true;break;}
+    }
+    if(!placed){for(let b=0;b<buckets.length;b++){if(buckets[b].length){result.push(buckets[b].shift());break;}}}
+  }
+  return result;
+}
+
 // 未使用の型だけを均等に追加するスケジュール生成
 function buildAddOnlySchedule(unusedTypes){
   const typeIds = unusedTypes.map(t => t.id);
   const dows = DOW.filter(dk => _afDows.has(dk));
   const weeks = [1,2,3,4];
-  const totalSlots = weeks.length * dows.length * _afDayCount;
+  // 追加のみモードは1日1スロット固定
+  const dayCount = 1;
+  const totalSlots = weeks.length * dows.length * dayCount;
 
-  function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-  function buildPool(ids, count){
-    const n=ids.length, base=Math.floor(count/n), extra=count%n;
-    const shuffled=shuffle([...ids]); const pool=[];
-    shuffled.forEach((id,i)=>{ const cnt=base+(i<extra?1:0); for(let j=0;j<cnt;j++) pool.push(id); });
-    return pool;
-  }
-  function deconflict(arr){
-    if(arr.length<=1) return arr;
-    const freq={}; arr.forEach(id=>{freq[id]=(freq[id]||0)+1;});
-    const maxFreq=Math.max(...Object.values(freq));
-    if(maxFreq>Math.ceil(arr.length/2)) return shuffle(arr);
-    const buckets=Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([id,cnt])=>Array(cnt).fill(id));
-    const result=[]; let safety=arr.length*4;
-    while(result.length<arr.length&&safety-->0){
-      let placed=false;
-      for(let b=0;b<buckets.length;b++){
-        if(!buckets[b].length) continue;
-        if(buckets[b][0]!==result[result.length-1]){ result.push(buckets[b].shift()); placed=true; break; }
-      }
-      if(!placed){ for(let b=0;b<buckets.length;b++){if(buckets[b].length){result.push(buckets[b].shift());break;}} }
-    }
-    return result;
-  }
-
-  let pool = buildPool(typeIds, totalSlots);
-  pool = deconflict(pool);
+  // buildAutoFillScheduleと同じ最新アルゴリズムを使用
+  const poolBase = buildPool(typeIds, totalSlots);
+  const freq = {};
+  poolBase.forEach(id => { freq[id] = (freq[id]||0)+1; });
+  let buckets = Object.entries(freq)
+    .sort((a,b) => b[1]-a[1])
+    .map(([id,cnt]) => Array(cnt).fill(id));
 
   const schedule = {};
   weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
-  let idx = 0;
-  for(let di = 0; di < _afDayCount; di++){
+
+  let lastGlobal = null;
+  for(let di = 0; di < dayCount; di++){
     weeks.forEach(w => {
       dows.forEach(dk => {
-        if(idx < pool.length){ schedule[w][dk].push({ typeId: pool[idx], time: '' }); idx++; }
+        const alreadyInSlot = new Set((schedule[w][dk]||[]).map(s => s.typeId));
+        const avoid = new Set([lastGlobal, ...alreadyInSlot].filter(Boolean));
+        buckets.sort((a,b) => b.length - a.length);
+        let chosen = null;
+        for(let b=0;b<buckets.length;b++){
+          if(!buckets[b].length) continue;
+          if(!avoid.has(buckets[b][0])){ chosen=buckets[b].shift(); break; }
+        }
+        if(!chosen){
+          for(let b=0;b<buckets.length;b++){
+            if(!buckets[b].length) continue;
+            if(!alreadyInSlot.has(buckets[b][0])){ chosen=buckets[b].shift(); break; }
+          }
+        }
+        if(!chosen){ for(let b=0;b<buckets.length;b++){if(buckets[b].length){chosen=buckets[b].shift();break;}} }
+        if(chosen){
+          schedule[w][dk].push({ typeId: chosen, time: '' });
+          lastGlobal = chosen;
+        }
       });
     });
   }
@@ -1387,61 +1434,6 @@ function buildAutoFillSchedule(){
   const dows = DOW.filter(dk => _afDows.has(dk));
   const weeks = [1,2,3,4];
   const totalSlots = weeks.length * dows.length * _afDayCount;
-
-  // Fisher-Yatesシャッフル
-  function shuffle(arr){
-    const a = [...arr];
-    for(let i = a.length-1; i > 0; i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [a[i],a[j]] = [a[j],a[i]];
-    }
-    return a;
-  }
-
-  // 均等配置プール生成（各型の出現回数が最大1差に収まる）
-  function buildPool(ids, count){
-    const n = ids.length;
-    const base = Math.floor(count / n);
-    const extra = count % n;
-    const shuffled = shuffle([...ids]);
-    const pool = [];
-    shuffled.forEach((id, i) => {
-      const cnt = base + (i < extra ? 1 : 0);
-      for(let j = 0; j < cnt; j++) pool.push(id);
-    });
-    return pool; // ちょうどcount件
-  }
-
-  // 同じ型が連続しないよう並び替え
-  function deconflict(arr){
-    if(arr.length <= 1) return arr;
-    const freq = {};
-    arr.forEach(id => { freq[id] = (freq[id]||0)+1; });
-    const maxFreq = Math.max(...Object.values(freq));
-    if(maxFreq > Math.ceil(arr.length / 2)) return shuffle(arr);
-    const buckets = Object.entries(freq)
-      .sort((a,b) => b[1]-a[1])
-      .map(([id, cnt]) => Array(cnt).fill(id));
-    const result = [];
-    let safety = arr.length * 4;
-    while(result.length < arr.length && safety-- > 0){
-      let placed = false;
-      for(let b = 0; b < buckets.length; b++){
-        if(!buckets[b].length) continue;
-        const last = result[result.length-1];
-        if(buckets[b][0] !== last){
-          result.push(buckets[b].shift());
-          placed = true; break;
-        }
-      }
-      if(!placed){
-        for(let b = 0; b < buckets.length; b++){
-          if(buckets[b].length){ result.push(buckets[b].shift()); break; }
-        }
-      }
-    }
-    return result;
-  }
 
   // ── 配置アルゴリズム（最終版） ──
   // 日付順（WEEK1月→WEEK1火→...→WEEK4日）にスロットを並べて
@@ -1556,13 +1548,15 @@ function execAutoFill(){
 function _doExec(){
   if(!_afResult) return;
   if(_afMode === 'add'){
-    // 既存スロットの後ろに追加するマージ
+    // 選択した曜日のみに追加マージ（空でない場合のみ）
+    const dows = DOW.filter(dk => _afDows.has(dk));
     [1,2,3,4].forEach(w => {
-      DOW.forEach(dk => {
-        const existing = S.schedule[w]?.[dk] || [];
-        const adding   = _afResult[w]?.[dk]  || [];
+      dows.forEach(dk => {
+        const adding = (_afResult[w]?.[dk] || []).filter(sl => sl.typeId);
+        if(!adding.length) return;
         if(!S.schedule[w]) S.schedule[w] = {};
-        S.schedule[w][dk] = [...existing, ...adding];
+        if(!S.schedule[w][dk]) S.schedule[w][dk] = [];
+        S.schedule[w][dk] = [...S.schedule[w][dk], ...adding];
       });
     });
     const addedTotal = Object.values(_afResult).flatMap(w => Object.values(w)).flat().length;
@@ -1908,8 +1902,8 @@ function finishTutorial(){
         <div style="display:flex;gap:5px;" id="af-dow-grid"></div>
       </div>
 
-      <!-- STEP 2: 1日の投稿数 -->
-      <div>
+      <!-- STEP 2: 1日の投稿数（全体再配置モードのみ表示） -->
+      <div id="af-count-section">
         <div class="fl" style="margin-bottom:10px;">② 1日の投稿数</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;" id="af-count-grid"></div>
       </div>
