@@ -1121,7 +1121,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 // ════════════════════════════════════════
 // PWA
 // ════════════════════════════════════════
-if('serviceWorker' in navigator && location.hostname.endsWith('github.io')){
+if('serviceWorker' in navigator && navigator.serviceWorker && location.hostname.endsWith('github.io')){
   const base=location.origin+location.pathname.replace(/\/[^/]*$/,'/');
   navigator.serviceWorker.register(base+'sw.js',{scope:base}).catch(()=>{});
 }
@@ -1438,30 +1438,42 @@ function buildAutoFillSchedule(){
     .map(([id, cnt]) => Array(cnt).fill(id));
 
   // 1投稿目を全週全曜日 → 2投稿目を全週全曜日 → ... の順で割り当て
-  // 同じ曜日×週に同じ型が入らないよう alreadyInSlot で管理
-  let lastGlobal = null;
+  // 直近3スロットと同日重複を避けながら配置
+  const recentHistory = []; // 直近3スロットの型IDを保持
+  const BUFFER = 3; // 何スロット以内の再登場を避けるか
+
   for(let di = 0; di < _afDayCount; di++){
     weeks.forEach(w => {
       dows.forEach(dk => {
-        // 避ける型: 直前の型 + この曜日×週にすでに入っている型
+        // 避ける型: 直近3スロット + この曜日×週にすでに入っている型
         const alreadyInSlot = new Set((schedule[w][dk] || []).map(s => s.typeId));
-        const avoid = new Set([lastGlobal, ...alreadyInSlot].filter(Boolean));
+        const recentSet = new Set(recentHistory);
+        const avoidAll = new Set([...recentSet, ...alreadyInSlot]);
 
         buckets.sort((a, b) => b.length - a.length);
         let chosen = null;
-        // 第1優先: 直前も同日も避ける
+
+        // 第1優先: 直近3件も同日も避ける
         for(let b = 0; b < buckets.length; b++){
           if(!buckets[b].length) continue;
-          if(!avoid.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
+          if(!avoidAll.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
         }
-        // 第2優先: 同日重複だけは絶対避ける（直前連続は許容）
+        // 第2優先: 直近バッファを緩めて同日だけ避ける
+        if(!chosen){
+          const avoidOnlySlot = new Set([...alreadyInSlot, recentHistory[recentHistory.length-1]].filter(Boolean));
+          for(let b = 0; b < buckets.length; b++){
+            if(!buckets[b].length) continue;
+            if(!avoidOnlySlot.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
+          }
+        }
+        // 第3優先: 同日重複だけは絶対避ける
         if(!chosen){
           for(let b = 0; b < buckets.length; b++){
             if(!buckets[b].length) continue;
             if(!alreadyInSlot.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
           }
         }
-        // やむなし
+        // やむなし（型が少なすぎる場合）
         if(!chosen){
           for(let b = 0; b < buckets.length; b++){
             if(buckets[b].length){ chosen = buckets[b].shift(); break; }
@@ -1469,7 +1481,8 @@ function buildAutoFillSchedule(){
         }
         if(chosen){
           schedule[w][dk].push({ typeId: chosen, time: '' });
-          lastGlobal = chosen;
+          recentHistory.push(chosen);
+          if(recentHistory.length > BUFFER) recentHistory.shift();
         }
       });
     });
