@@ -1373,121 +1373,41 @@ function buildAddOnlySchedule(unusedTypes){
   const weeks = [1,2,3,4];
   // 追加のみモードは1日1スロット固定
   const dayCount = 1;
-  const totalSlots = weeks.length * dows.length * dayCount;
-
-  // buildAutoFillScheduleと同じ最新アルゴリズムを使用
-  const poolBase = buildPool(typeIds, totalSlots);
-  const freq = {};
-  poolBase.forEach(id => { freq[id] = (freq[id]||0)+1; });
-  let buckets = Object.entries(freq)
+  const totalSlots2 = weeks.length * dows.length * dayCount;
+  const poolBase2 = buildPool(typeIds, totalSlots2);
+  const freq2 = {};
+  poolBase2.forEach(id => { freq2[id] = (freq2[id]||0)+1; });
+  let buckets2 = Object.entries(freq2)
     .sort((a,b) => b[1]-a[1])
     .map(([id,cnt]) => Array(cnt).fill(id));
 
-  const schedule = {};
-  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
+  const days2 = [];
+  weeks.forEach(w => dows.forEach(dk => days2.push({w, dk})));
 
-  let lastGlobal = null;
-  for(let di = 0; di < dayCount; di++){
-    weeks.forEach(w => {
-      dows.forEach(dk => {
-        const alreadyInSlot = new Set((schedule[w][dk]||[]).map(s => s.typeId));
-        const avoid = new Set([lastGlobal, ...alreadyInSlot].filter(Boolean));
-        buckets.sort((a,b) => b.length - a.length);
-        let chosen = null;
-        for(let b=0;b<buckets.length;b++){
-          if(!buckets[b].length) continue;
-          if(!avoid.has(buckets[b][0])){ chosen=buckets[b].shift(); break; }
-        }
-        if(!chosen){
-          for(let b=0;b<buckets.length;b++){
-            if(!buckets[b].length) continue;
-            if(!alreadyInSlot.has(buckets[b][0])){ chosen=buckets[b].shift(); break; }
-          }
-        }
-        if(!chosen){ for(let b=0;b<buckets.length;b++){if(buckets[b].length){chosen=buckets[b].shift();break;}} }
-        if(chosen){
-          schedule[w][dk].push({ typeId: chosen, time: '' });
-          lastGlobal = chosen;
-        }
-      });
-    });
-  }
-  return schedule;
-}
-
-function buildAutoFillSchedule(){
-  const typeIds = S.types.map(t => t.id);
-  const dows = DOW.filter(dk => _afDows.has(dk));
-  const weeks = [1,2,3,4];
-  const totalSlots = weeks.length * dows.length * _afDayCount;
-
-  // ── 配置アルゴリズム（最終版） ──
-  // 日付順（WEEK1月→WEEK1火→...→WEEK4日）にスロットを並べて
-  // 「直前の型を避けながら」均等に割り当てる
-
-  const schedule = {};
-  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
-
-  // スロットを日付順に生成
-  // 均等プール生成
-  const poolBase = buildPool(typeIds, totalSlots);
-  const freq = {};
-  poolBase.forEach(id => { freq[id] = (freq[id] || 0) + 1; });
-  let buckets = Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .map(([id, cnt]) => Array(cnt).fill(id));
-
-  // 1投稿目を全週全曜日 → 2投稿目を全週全曜日 → ... の順で割り当て
-  // 直近3スロットと同日重複を避けながら配置
-  const recentHistory = []; // 直近3スロットの型IDを保持
-  const BUFFER = 3; // 何スロット以内の再登場を避けるか
-
-  for(let di = 0; di < _afDayCount; di++){
-    weeks.forEach(w => {
-      dows.forEach(dk => {
-        // 避ける型: 直近3スロット + この曜日×週にすでに入っている型
-        const alreadyInSlot = new Set((schedule[w][dk] || []).map(s => s.typeId));
-        const recentSet = new Set(recentHistory);
-        const avoidAll = new Set([...recentSet, ...alreadyInSlot]);
-
-        buckets.sort((a, b) => b.length - a.length);
-        let chosen = null;
-
-        // 第1優先: 直近3件も同日も避ける
-        for(let b = 0; b < buckets.length; b++){
-          if(!buckets[b].length) continue;
-          if(!avoidAll.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
-        }
-        // 第2優先: 直近バッファを緩めて同日だけ避ける
-        if(!chosen){
-          const avoidOnlySlot = new Set([...alreadyInSlot, recentHistory[recentHistory.length-1]].filter(Boolean));
-          for(let b = 0; b < buckets.length; b++){
-            if(!buckets[b].length) continue;
-            if(!avoidOnlySlot.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
-          }
-        }
-        // 第3優先: 同日重複だけは絶対避ける
-        if(!chosen){
-          for(let b = 0; b < buckets.length; b++){
-            if(!buckets[b].length) continue;
-            if(!alreadyInSlot.has(buckets[b][0])){ chosen = buckets[b].shift(); break; }
-          }
-        }
-        // やむなし（型が少なすぎる場合）
-        if(!chosen){
-          for(let b = 0; b < buckets.length; b++){
-            if(buckets[b].length){ chosen = buckets[b].shift(); break; }
-          }
-        }
-        if(chosen){
-          schedule[w][dk].push({ typeId: chosen, time: '' });
-          recentHistory.push(chosen);
-          if(recentHistory.length > BUFFER) recentHistory.shift();
-        }
-      });
-    });
+  function pick2(avoidSet){
+    buckets2.sort((a,b) => b.length - a.length);
+    for(let b=0;b<buckets2.length;b++){
+      if(!buckets2[b].length) continue;
+      if(!avoidSet.has(buckets2[b][0])) return buckets2[b].shift();
+    }
+    for(let b=0;b<buckets2.length;b++){
+      if(buckets2[b].length) return buckets2[b].shift();
+    }
+    return null;
   }
 
+  let prevLast2 = null;
+  days2.forEach(({w, dk}) => {
+    const todaySlots2 = [];
+    const avoid2 = new Set(todaySlots2);
+    if(prevLast2) avoid2.add(prevLast2);
+    const chosen2 = pick2(avoid2);
+    if(chosen2){
+      schedule[w][dk].push({ typeId: chosen2, time: '' });
+      todaySlots2.push(chosen2);
+      prevLast2 = chosen2;
+    }
+  })
   return schedule;
 }
 
