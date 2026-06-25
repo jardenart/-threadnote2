@@ -1411,6 +1411,56 @@ function buildAddOnlySchedule(unusedTypes){
   return schedule;
 }
 
+function buildAutoFillSchedule(){
+  const typeIds = S.types.map(t => t.id);
+  const dows = DOW.filter(dk => _afDows.has(dk));
+  const weeks = [1,2,3,4];
+  const totalSlots = weeks.length * dows.length * _afDayCount;
+
+  const poolBase = buildPool(typeIds, totalSlots);
+  const freq = {};
+  poolBase.forEach(id => { freq[id] = (freq[id]||0)+1; });
+  let buckets = Object.entries(freq)
+    .sort((a,b) => b[1]-a[1])
+    .map(([id,cnt]) => Array(cnt).fill(id));
+
+  const schedule = {};
+  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
+
+  const days = [];
+  weeks.forEach(w => dows.forEach(dk => days.push({w, dk})));
+
+  function pick(avoidSet){
+    buckets.sort((a,b) => b.length - a.length);
+    for(let b=0;b<buckets.length;b++){
+      if(!buckets[b].length) continue;
+      if(!avoidSet.has(buckets[b][0])) return buckets[b].shift();
+    }
+    for(let b=0;b<buckets.length;b++){
+      if(buckets[b].length) return buckets[b].shift();
+    }
+    return null;
+  }
+
+  let prevLastType = null;
+
+  days.forEach(({w, dk}) => {
+    const todaySlots = [];
+    for(let slot = 0; slot < _afDayCount; slot++){
+      const avoid = new Set(todaySlots);
+      if(slot === 0 && prevLastType) avoid.add(prevLastType);
+      const chosen = pick(avoid);
+      if(chosen){
+        schedule[w][dk].push({ typeId: chosen, time: '' });
+        todaySlots.push(chosen);
+      }
+    }
+    prevLastType = todaySlots[todaySlots.length-1] || null;
+  });
+
+  return schedule;
+}
+
 function previewAutoFill(){
   if(!_afDows.size){ toast('曜日を選択してください'); return; }
   if(_afMode === 'add'){
@@ -1832,135 +1882,4 @@ function finishTutorial(){
       </div>
 
       <!-- STEP 3: プレビュー -->
-      <div id="af-preview" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;letter-spacing:.5px;">PREVIEW — WEEK 1〜4</div>
-        <div id="af-preview-body" style="display:flex;flex-direction:column;gap:10px;"></div>
-      </div>
-
-      <!-- モード切替 -->
-      <div>
-        <div class="fl" style="margin-bottom:10px;">配置モード</div>
-        <div style="display:flex;gap:6px;">
-          <div id="af-mode-add" onclick="setAfMode('add')" style="
-            flex:1;padding:11px 8px;border-radius:10px;text-align:center;cursor:pointer;
-            border:1px solid var(--p);background:rgba(123,110,246,.15);
-            transition:all .15s;">
-            <div style="font-size:13px;font-weight:700;color:var(--p2);">追加のみ</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:3px;">既存を崩さず<br>未使用の型を追加</div>
-          </div>
-          <div id="af-mode-full" onclick="setAfMode('full')" style="
-            flex:1;padding:11px 8px;border-radius:10px;text-align:center;cursor:pointer;
-            border:1px solid var(--border);background:var(--card2);
-            transition:all .15s;">
-            <div style="font-size:13px;font-weight:700;color:var(--text2);">全体を再配置</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:3px;">全スロットを<br>リセットして振り直す</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 注意 -->
-      <div id="af-note" style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
-        ✅ 既存のスケジュールはそのまま。まだ1回も使われていない型だけを追加します。
-      </div>
-
-    </div>
-    <div class="sh-foot" style="flex-direction:column;gap:8px;">
-      <button class="btn btn-full" onclick="previewAutoFill()"
-        style="background:rgba(255,183,77,.15);color:var(--amber);border:1px solid rgba(255,183,77,.3);justify-content:center;gap:8px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        ③ プレビューを確認
-      </button>
-      <div style="display:flex;gap:8px;width:100%;">
-        <button class="btn btn-ghost" style="flex:1;" onclick="closeOv('ov-autofill')">キャンセル</button>
-        <button class="btn btn-pri" style="flex:2;justify-content:center;gap:6px;" id="af-exec-btn" onclick="execAutoFill()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          ④ 自動配置を実行
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ BACKUP SHEET ═══ -->
-<div class="ov" id="ov-backup">
-  <div class="sheet" style="max-height:80vh;">
-    <div class="handle"></div>
-    <div class="sh-title">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
-      バックアップ・インポート
-    </div>
-    <div class="sh-body" style="gap:16px;">
-
-      <!-- エクスポート -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
-          <span style="color:var(--teal);">エクスポート（バックアップ）</span>
-        </div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;">
-          登録した型をJSONファイルとして書き出します。スマホのダウンロードフォルダに保存されます。
-        </div>
-        <button class="btn btn-full" onclick="exportTypes()"
-          style="background:rgba(77,208,196,.12);color:var(--teal);border:1px solid rgba(77,208,196,.25);justify-content:center;gap:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
-          JSONでダウンロード（<span id="export-count">0</span>件）
-        </button>
-      </div>
-
-      <!-- インポート -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round"><polyline points="16 7 12 3 8 7"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
-          <span style="color:var(--p2);">インポート（復元）</span>
-        </div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;">
-          以前にエクスポートしたJSONファイルを読み込みます。
-        </div>
-        <div style="display:flex;gap:8px;flex-direction:column;">
-          <div style="display:flex;gap:6px;">
-            <label style="flex:1;">
-              <div class="btn btn-full" style="background:rgba(123,110,246,.12);color:var(--p2);border:1px solid rgba(123,110,246,.25);justify-content:center;gap:8px;cursor:pointer;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 7 12 3 8 7"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.96"/></svg>
-                JSONファイルを選択
-              </div>
-              <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importTypes(event)">
-            </label>
-          </div>
-          <div id="import-preview" style="display:none;background:var(--card2);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);line-height:1.7;"></div>
-          <button id="import-confirm-btn" class="btn btn-full btn-pri" onclick="confirmImport()" style="display:none;justify-content:center;">
-            インポートを確定する
-          </button>
-        </div>
-      </div>
-
-      <!-- 注意 -->
-      <div style="background:rgba(255,183,77,.06);border:1px solid rgba(255,183,77,.2);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--amber);line-height:1.8;">
-        ⚠️ インポートを確定すると既存の型に追加されます（上書きではありません）。同じ型が重複する場合はご注意ください。
-      </div>
-
-    </div>
-    <div class="sh-foot">
-      <button class="btn btn-ghost btn-full" onclick="closeOv('ov-backup')">閉じる</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ TUTORIAL (初回のみ) ═══ -->
-<div id="tutorial" style="display:none;position:fixed;inset:0;z-index:8000;background:#0d0d14;">
-  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.07);">
-    <div id="tut-bar" style="height:100%;background:linear-gradient(90deg,#7b6ef6,#f06292);border-radius:2px;transition:width .4s ease;width:0%;"></div>
-  </div>
-  <div id="tut-slides" style="height:100%;display:flex;flex-direction:column;overflow:hidden;"></div>
-  <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 24px calc(20px + env(safe-area-inset-bottom));
-    display:flex;align-items:center;justify-content:space-between;
-    background:linear-gradient(transparent,#0d0d14 60%);">
-    <button id="tut-skip" onclick="skipTutorial()"
-      style="background:none;border:none;color:#44445a;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:8px;">スキップ</button>
-    <div style="display:flex;gap:6px;align-items:center;" id="tut-dots"></div>
-    <button id="tut-next" onclick="nextSlide()"
-      style="background:#7b6ef6;border:none;color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;padding:11px 24px;border-radius:12px;transition:all .15s;min-width:90px;">次へ</button>
-  </div>
-</div>
-
-</body>
-</html>
+      <div id="af-preview" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1
