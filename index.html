@@ -1192,7 +1192,8 @@ if(!S.cycleStart) S.cycleStart=today();
 // AUTO FILL
 // ════════════════════════════════════════
 let _afDows = new Set(['mon','tue','wed','thu','fri']);
-let _afDayCount = 1;   // 1日の投稿数
+let _afDayCount = 1;   // 1日の投稿数（全体再配置用）
+let _afAddCount = 1;   // 4週で何回登場させるか（追加のみ用）
 let _afResult = null;
 
 let _afMode = 'add'; // 'add' | 'full'
@@ -1205,6 +1206,7 @@ function openAutoFillSheet(){
   }
   _afDows = new Set(['mon','tue','wed','thu','fri']);
   _afDayCount = 1;
+  _afAddCount = 1;
   _afResult = null;
   const unused = getUnusedTypes();
   _afMode = unused.length > 0 ? 'add' : 'full';
@@ -1256,7 +1258,11 @@ function renderAfMode(){
   fullEl.querySelector('div').style.color = !isAdd ? 'var(--amber)' : 'var(--text2)';
   // 1日の投稿数は「全体を再配置」モードのみ表示
   const countSection = document.getElementById('af-count-section');
-  if(countSection) countSection.style.display = isAdd ? 'none' : 'block';
+  if(countSection) countSection.style.display = 'block';
+  // ラベルとグリッドをモードに応じて切り替え
+  const countLabel = document.getElementById('af-count-label');
+  if(countLabel) countLabel.textContent = isAdd ? '② 4週で何回登場させるか' : '② 1日の投稿数';
+  renderAfCountGrid();
 
   if(noteEl){
     if(isAdd){
@@ -1307,26 +1313,43 @@ function toggleAfDow(dk){
 function renderAfCountGrid(){
   const grid = document.getElementById('af-count-grid');
   if(!grid) return;
-  [1,2,3,4,5].forEach(n=>{
-    const on = n === _afDayCount;
-    grid.innerHTML += ``;
-  });
-  grid.innerHTML = [1,2,3,4,5,6,7,8,9,10].map(n=>{
-    const on = n === _afDayCount;
-    return `<button onclick="setAfDayCount(${n})" style="
-      padding:9px 12px;border-radius:10px;
-      border:1px solid ${on ? 'var(--amber)' : 'var(--border)'};
-      background:${on ? 'rgba(255,183,77,.15)' : 'var(--card2)'};
-      color:${on ? 'var(--amber)' : 'var(--text2)'};
-      font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
-      cursor:pointer;transition:all .15s;">
-      ${n}
-    </button>`;
-  }).join('');
+  if(_afMode === 'add'){
+    grid.innerHTML = [1,2,3,4,5,6,7,8].map(n=>{
+      const on = n === _afAddCount;
+      return `<button onclick="setAfAddCount(${n})" style="
+        padding:9px 12px;border-radius:10px;
+        border:1px solid ${on ? 'var(--teal)' : 'var(--border)'};
+        background:${on ? 'rgba(77,208,196,.15)' : 'var(--card2)'};
+        color:${on ? 'var(--teal)' : 'var(--text2)'};
+        font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
+        cursor:pointer;transition:all .15s;">
+        ${n}回
+      </button>`;
+    }).join('');
+  } else {
+    grid.innerHTML = [1,2,3,4,5,6,7,8,9,10].map(n=>{
+      const on = n === _afDayCount;
+      return `<button onclick="setAfDayCount(${n})" style="
+        padding:9px 12px;border-radius:10px;
+        border:1px solid ${on ? 'var(--amber)' : 'var(--border)'};
+        background:${on ? 'rgba(255,183,77,.15)' : 'var(--card2)'};
+        color:${on ? 'var(--amber)' : 'var(--text2)'};
+        font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
+        cursor:pointer;transition:all .15s;">
+        ${n}
+      </button>`;
+    }).join('');
+  }
 }
 
 function setAfDayCount(n){
   _afDayCount = n;
+  renderAfCountGrid();
+  updateAfTotalInfo();
+  resetAfPreview();
+}
+function setAfAddCount(n){
+  _afAddCount = n;
   renderAfCountGrid();
   updateAfTotalInfo();
   resetAfPreview();
@@ -1345,6 +1368,7 @@ function updateAfTotalInfo(){
       info.innerHTML = `<div style="font-weight:700;color:var(--text);margin-bottom:4px;">未使用の型: 0件</div>
         <div style="font-size:12px;line-height:1.8;">すべての型がすでにスケジュールに含まれています。<br>「全体を再配置」モードで振り直すか、新しい型を登録してください。</div>`;
     } else {
+      const addSlots = addCount * _afAddCount;
       info.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <span style="font-weight:700;color:var(--text);">追加する型</span>
@@ -1352,7 +1376,7 @@ function updateAfTotalInfo(){
         </div>
         <div style="font-size:12px;line-height:1.8;">
           ${unused.map(t=>`<span style="color:${t.color};font-weight:600;">${esc(t.name)}</span>`).join(' · ')}<br>
-          4週 × 週${dowCount}日 × ${_afDayCount}投稿 = 追加${totalSlots}スロットに振り分け
+          各型 × ${_afAddCount}回 = 合計 ${addSlots}スロット追加
         </div>`;
     }
   } else {
@@ -1413,9 +1437,10 @@ function buildAddOnlySchedule(unusedTypes){
   const typeIds = unusedTypes.map(t => t.id);
   const dows = DOW.filter(dk => _afDows.has(dk));
   const weeks = [1,2,3,4];
-  const totalSlots = weeks.length * dows.length; // 1日1スロット固定
+  // 各型を_afAddCount回登場させるプールを生成
+  const totalSlots = typeIds.length * _afAddCount;
 
-  // scheduleを初期化（ここが抜けていた）
+  // scheduleを初期化
   const schedule = {};
   weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
 
@@ -1426,8 +1451,9 @@ function buildAddOnlySchedule(unusedTypes){
     .sort((a,b) => b[1]-a[1])
     .map(([id,cnt]) => Array(cnt).fill(id));
 
-  const days = [];
-  weeks.forEach(w => dows.forEach(dk => days.push({w, dk})));
+  // 利用可能なスロット（week×dow）をシャッフルして均等配置
+  const allSlots = [];
+  weeks.forEach(w => dows.forEach(dk => allSlots.push({w, dk})));
 
   function pick(avoidSet){
     buckets.sort((a,b) => b.length - a.length);
@@ -1441,14 +1467,28 @@ function buildAddOnlySchedule(unusedTypes){
     return null;
   }
 
+  // poolの件数分だけ、allSlotsを循環しながら配置
+  let slotIdx = 0;
   let prevLast = null;
-  days.forEach(({w, dk}) => {
-    const avoid = new Set();
-    if(prevLast) avoid.add(prevLast);
-    const chosen = pick(avoid);
-    if(chosen){
-      schedule[w][dk].push({ typeId: chosen, time: '' });
-      prevLast = chosen;
+  pool.forEach(typeId => {
+    // 空きスロットを探す（同日重複を避ける）
+    let placed = false;
+    for(let tries = 0; tries < allSlots.length; tries++){
+      const {w, dk} = allSlots[(slotIdx + tries) % allSlots.length];
+      const existing = schedule[w][dk].map(s => s.typeId);
+      if(!existing.includes(typeId)){
+        schedule[w][dk].push({ typeId, time: '' });
+        slotIdx = (slotIdx + tries + 1) % allSlots.length;
+        prevLast = typeId;
+        placed = true;
+        break;
+      }
+    }
+    // どこにも入らなければ先頭に追加
+    if(!placed){
+      const {w, dk} = allSlots[slotIdx % allSlots.length];
+      schedule[w][dk].push({ typeId, time: '' });
+      slotIdx = (slotIdx + 1) % allSlots.length;
     }
   });
 
@@ -1915,9 +1955,9 @@ function finishTutorial(){
         <div style="display:flex;gap:5px;" id="af-dow-grid"></div>
       </div>
 
-      <!-- STEP 2: 1日の投稿数（全体再配置モードのみ表示） -->
+      <!-- STEP 2: 投稿数設定（モードで切り替え） -->
       <div id="af-count-section">
-        <div class="fl" style="margin-bottom:10px;">② 1日の投稿数</div>
+        <div class="fl" style="margin-bottom:10px;" id="af-count-label">② 1日の投稿数</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;" id="af-count-grid"></div>
       </div>
 
