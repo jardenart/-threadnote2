@@ -1413,43 +1413,45 @@ function buildAddOnlySchedule(unusedTypes){
   const typeIds = unusedTypes.map(t => t.id);
   const dows = DOW.filter(dk => _afDows.has(dk));
   const weeks = [1,2,3,4];
-  // 追加のみモードは1日1スロット固定
-  const dayCount = 1;
-  const totalSlots2 = weeks.length * dows.length * dayCount;
-  const poolBase2 = buildPool(typeIds, totalSlots2);
-  const freq2 = {};
-  poolBase2.forEach(id => { freq2[id] = (freq2[id]||0)+1; });
-  let buckets2 = Object.entries(freq2)
+  const totalSlots = weeks.length * dows.length; // 1日1スロット固定
+
+  // scheduleを初期化（ここが抜けていた）
+  const schedule = {};
+  weeks.forEach(w => { schedule[w] = {}; DOW.forEach(dk => schedule[w][dk] = []); });
+
+  const pool = buildPool(typeIds, totalSlots);
+  const freq = {};
+  pool.forEach(id => { freq[id] = (freq[id]||0)+1; });
+  let buckets = Object.entries(freq)
     .sort((a,b) => b[1]-a[1])
     .map(([id,cnt]) => Array(cnt).fill(id));
 
-  const days2 = [];
-  weeks.forEach(w => dows.forEach(dk => days2.push({w, dk})));
+  const days = [];
+  weeks.forEach(w => dows.forEach(dk => days.push({w, dk})));
 
-  function pick2(avoidSet){
-    buckets2.sort((a,b) => b.length - a.length);
-    for(let b=0;b<buckets2.length;b++){
-      if(!buckets2[b].length) continue;
-      if(!avoidSet.has(buckets2[b][0])) return buckets2[b].shift();
+  function pick(avoidSet){
+    buckets.sort((a,b) => b.length - a.length);
+    for(let b=0;b<buckets.length;b++){
+      if(!buckets[b].length) continue;
+      if(!avoidSet.has(buckets[b][0])) return buckets[b].shift();
     }
-    for(let b=0;b<buckets2.length;b++){
-      if(buckets2[b].length) return buckets2[b].shift();
+    for(let b=0;b<buckets.length;b++){
+      if(buckets[b].length) return buckets[b].shift();
     }
     return null;
   }
 
-  let prevLast2 = null;
-  days2.forEach(({w, dk}) => {
-    const todaySlots2 = [];
-    const avoid2 = new Set(todaySlots2);
-    if(prevLast2) avoid2.add(prevLast2);
-    const chosen2 = pick2(avoid2);
-    if(chosen2){
-      schedule[w][dk].push({ typeId: chosen2, time: '' });
-      todaySlots2.push(chosen2);
-      prevLast2 = chosen2;
+  let prevLast = null;
+  days.forEach(({w, dk}) => {
+    const avoid = new Set();
+    if(prevLast) avoid.add(prevLast);
+    const chosen = pick(avoid);
+    if(chosen){
+      schedule[w][dk].push({ typeId: chosen, time: '' });
+      prevLast = chosen;
     }
-  })
+  });
+
   return schedule;
 }
 
